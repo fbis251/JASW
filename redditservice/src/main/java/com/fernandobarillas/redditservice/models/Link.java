@@ -1,0 +1,136 @@
+package com.fernandobarillas.redditservice.models;
+
+import net.dean.jraw.models.PublicContribution;
+import net.dean.jraw.models.Submission;
+import net.dean.jraw.models.Thing;
+import net.dean.jraw.models.VoteDirection;
+
+import java.util.Date;
+
+/**
+ * Created by fb on 12/15/15.
+ */
+public class Link extends PublicContribution {
+    private String mAuthor;
+    private Boolean mIsNsfw;
+    private Boolean mIsSaved;
+    private String mDomain;
+    private Double mUpvoteRatio;
+    private String mPermaLink;
+    private String mSubredditName;
+    private String mThumbnail;
+    private String mTitle;
+    private String mUrl;
+    private String mShortUrl;
+    private Integer mScore;
+    private Date mCreatedUtc;
+    private VoteDirection mVoteDirection;
+    private String mFullName;
+    private String mId;
+
+    public Link(Submission submission) {
+        super(null);
+        mAuthor = submission.getAuthor();
+        mIsNsfw = submission.isNsfw();
+        mIsSaved = submission.isSaved();
+        mDomain = submission.getDomain();
+        mUpvoteRatio = submission.getUpvoteRatio();
+        mPermaLink = submission.getPermalink();
+        mSubredditName = submission.getSubredditName();
+        mThumbnail = submission.getThumbnail();
+        mTitle = submission.getTitle();
+        mUrl = submission.getUrl();
+        mShortUrl = submission.getShortURL();
+        mScore = submission.getScore();
+        mCreatedUtc = submission.getCreatedUtc();
+        mVoteDirection = submission.getVote();
+        mFullName = submission.getFullName();
+        mId = submission.getId();
+    }
+
+    public String getAuthor() {
+        return mAuthor;
+    }
+
+    public Boolean isNsfw() {
+        return mIsNsfw;
+    }
+
+    public Boolean isSaved() {
+        return mIsSaved;
+    }
+
+    public String getDomain() {
+        return mDomain;
+    }
+
+    public Double getUpvoteRatio() {
+        return mUpvoteRatio;
+    }
+
+    public String getPermalink() {
+        return mPermaLink;
+    }
+
+    public String getSubredditName() {
+        return mSubredditName;
+    }
+
+    public String getThumbnail() {
+        return mThumbnail;
+    }
+
+    public String getTitle() {
+        return mTitle;
+    }
+
+    public String getUrl() {
+        return mUrl;
+    }
+
+    public String getShortURL() {
+        return mShortUrl;
+    }
+
+    public Integer getScore() {
+        return mScore;
+    }
+
+    public Date getCreatedUtc() {
+        return mCreatedUtc;
+    }
+
+    public VoteDirection getVote() {
+        return mVoteDirection;
+    }
+
+    public String getFullName() {
+        return mFullName;
+    }
+
+    public String getId() {
+        return mId;
+    }
+
+    @Override
+    public int hashCode() {
+        return getId().hashCode();
+    }
+
+    @Override
+    public boolean equals(Object otherObject) {
+        if (this == otherObject) {
+            return true;
+        }
+
+        if (!(otherObject instanceof Thing)) {
+            return false;
+        }
+
+        // Now that we know that the object we are checking is a Thing, cast it as one.
+        Thing thing = (Thing) otherObject;
+
+        // Compare the ID String values and use that as the return value
+        return this.getId().equals(thing.getId());
+    }
+}

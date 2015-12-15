@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Reddit Service Test</string>
+    <string name="reddit_service_name">Reddit Service</string>
+    <string name="action_settings">Settings</string>
+</resources>
