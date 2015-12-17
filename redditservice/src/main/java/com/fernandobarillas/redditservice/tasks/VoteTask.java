@@ -1,12 +1,12 @@
 package com.fernandobarillas.redditservice.tasks;
 
-import android.os.AsyncTask;
-import android.util.Log;
-
 import com.fernandobarillas.redditservice.exceptions.NullAccountManagerException;
 import com.fernandobarillas.redditservice.requests.VoteRequest;
 
 import net.dean.jraw.managers.AccountManager;
+
+import android.os.AsyncTask;
+import android.util.Log;
 
 /**
  * Created by fb on 12/15/15.

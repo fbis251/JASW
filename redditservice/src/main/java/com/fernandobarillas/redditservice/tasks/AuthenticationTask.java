@@ -1,8 +1,5 @@
 package com.fernandobarillas.redditservice.tasks;
 
-import android.os.AsyncTask;
-import android.util.Log;
-
 import com.fernandobarillas.redditservice.exceptions.NullRedditClientException;
 import com.fernandobarillas.redditservice.requests.AuthenticationRequest;
 
@@ -10,6 +7,9 @@ import net.dean.jraw.RedditClient;
 import net.dean.jraw.http.oauth.Credentials;
 import net.dean.jraw.http.oauth.OAuthData;
 import net.dean.jraw.http.oauth.OAuthHelper;
+
+import android.os.AsyncTask;
+import android.util.Log;
 
 import java.util.UUID;
 
