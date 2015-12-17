@@ -1,9 +1,22 @@
 package test.fb.servicetest;
 
+import com.fernandobarillas.redditservice.RedditService;
+import com.fernandobarillas.redditservice.callbacks.RedditLinksCallback;
+import com.fernandobarillas.redditservice.callbacks.RedditVoteCallback;
+import com.fernandobarillas.redditservice.links.validators.ImageLinkValidator;
+import com.fernandobarillas.redditservice.models.Link;
+import com.fernandobarillas.redditservice.requests.SubredditRequest;
+
+import net.dean.jraw.http.UserAgent;
+import net.dean.jraw.paginators.Sorting;
+import net.dean.jraw.paginators.TimePeriod;
+
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -18,12 +31,6 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
-import com.fernandobarillas.redditservice.RedditService;
-import com.fernandobarillas.redditservice.callbacks.RedditDataUpdatedCallback;
-import com.fernandobarillas.redditservice.callbacks.RedditVoteCallback;
-import com.fernandobarillas.redditservice.models.Link;
-import com.fernandobarillas.redditservice.requests.SubredditRequest;
-
 public class MainActivity extends AppCompatActivity {
     private static final String LOG_TAG = "MainActivity";
     private static final int UPDATE_INTERVAL = 1; // Seconds between UI updates from RedditService
@@ -31,12 +38,76 @@ public class MainActivity extends AppCompatActivity {
     private Handler elapsedTimeHandler;
     private TextView mElapsedTimeTextView;
     private Button mGetMoreLinksButton;
-    private SubredditRequest mSubredditRequest;
     private FloatingActionButton mFab;
+    private ServiceConnection mRedditServiceConnection = new ServiceConnection() {
+        private static final String LOG_TAG = "ServiceConnection";
+
+        public void onServiceConnected(ComponentName className, IBinder iBinder) {
+            Log.d(LOG_TAG,
+                    "onServiceConnected() called with: " + "className = [" + className + "], iBinder = [" + iBinder + "]");
+            RedditService.RedditBinder redditBinder = (RedditService.RedditBinder) iBinder;
+            mRedditService = redditBinder.getService();
+            if (mRedditService == null) {
+                return;
+                // TODO: Handle service unavailable, perform retries
+            }
+
+            // TODO: Download links when service first connects
+            if (mFab != null) {
+                mFab.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(final View view) {
+                        final Link lastLink =
+                                mRedditService.getLink(mRedditService.getLinkCount() - 1);
+                        if (lastLink != null) {
+                            mRedditService.downvoteLink(lastLink, new RedditVoteCallback() {
+                                @Override
+                                public void voteCallback(Exception e) {
+                                    if (e != null) {
+                                        Snackbar.make(view,
+                                                "Error when voting: " + e.getLocalizedMessage(),
+                                                Snackbar.LENGTH_INDEFINITE).show();
+                                    } else {
+                                        Snackbar.make(view, "Downvoted " + lastLink.getTitle(),
+                                                Snackbar.LENGTH_SHORT).show();
+                                    }
+                                }
+                            });
+                        }
+                    }
+                });
+            }
+
+            if (mGetMoreLinksButton != null) {
+                mGetMoreLinksButton.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(final View view) {
+                        boolean showNsfw = false;
+                        SubredditRequest subredditRequest =
+                                new SubredditRequest.Builder("all")
+                                        .setLinkLimit(50)
+                                        .setSorting(Sorting.TOP)
+                                        .setTimePeriod(TimePeriod.YEAR)
+                                        .setLinkValidator(new ImageLinkValidator(showNsfw))
+                                        .setRedditLinksCallback(handleRedditDataUpdate(view))
+                                        .build();
+                        mRedditService.getMoreLinks(subredditRequest);
+                    }
+                });
+            }
+        }
+
+        public void onServiceDisconnected(ComponentName className) {
+            Log.d(LOG_TAG,
+                    "onServiceDisconnected() called with: " + "className = [" + className + "]");
+            mRedditService = null;
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        Log.d(LOG_TAG, "onCreate() called with: " + "savedInstanceState = [" + savedInstanceState + "]");
+        Log.d(LOG_TAG,
+                "onCreate() called with: " + "savedInstanceState = [" + savedInstanceState + "]");
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
@@ -44,7 +115,6 @@ public class MainActivity extends AppCompatActivity {
         mGetMoreLinksButton = (Button) findViewById(R.id.get_links_button);
 
         setSupportActionBar(toolbar);
-        mSubredditRequest = new SubredditRequest("all");
 
         mFab = (FloatingActionButton) findViewById(R.id.fab);
 
@@ -71,12 +141,27 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         Log.d(LOG_TAG, "onResume()");
         super.onResume();
+        PackageInfo packageInfo = null;
+        try {
+            packageInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
+        } catch (PackageManager.NameNotFoundException e) {
+            e.printStackTrace();
+        }
+        String platform = "Android";
+        String appId = getApplication().getPackageName();
+        String version = (packageInfo != null) ? packageInfo.versionName : "";
+        String redditUsername = "fernandobarillas";
+        UserAgent appUserAgent = UserAgent.of(platform, appId, version, redditUsername);
 
         // Bind the reddit service to this Activity
         Intent redditServiceIntent = new Intent(this, RedditService.class);
-        redditServiceIntent.putExtra(RedditService.REFRESH_TOKEN_KEY, PrivateConstants.REFRESH_TOKEN);
-        redditServiceIntent.putExtra(RedditService.REDDIT_CLIENT_ID_KEY, PrivateConstants.REDDIT_CLIENT_ID);
-        redditServiceIntent.putExtra(RedditService.REDDIT_REDIRECT_URL_KEY, PrivateConstants.REDDIT_REDIRECT_URL);
+        redditServiceIntent.putExtra(RedditService.USER_AGENT, appUserAgent.toString());
+        redditServiceIntent.putExtra(RedditService.REFRESH_TOKEN_KEY,
+                PrivateConstants.REFRESH_TOKEN);
+        redditServiceIntent.putExtra(RedditService.REDDIT_CLIENT_ID_KEY,
+                PrivateConstants.REDDIT_CLIENT_ID);
+        redditServiceIntent.putExtra(RedditService.REDDIT_REDIRECT_URL_KEY,
+                PrivateConstants.REDDIT_REDIRECT_URL);
         bindService(redditServiceIntent, mRedditServiceConnection, Context.BIND_AUTO_CREATE);
     }
 
@@ -123,69 +208,17 @@ public class MainActivity extends AppCompatActivity {
                 String.format("%d second(s)\nLink Count: %d", elapsedTime, linkCount));
     }
 
-    private RedditDataUpdatedCallback handleRedditDataUpdate(final View view) {
-        return new RedditDataUpdatedCallback() {
+    private RedditLinksCallback handleRedditDataUpdate(final View view) {
+        return new RedditLinksCallback() {
             @Override
-            public void dataUpdateCallback(Exception e) {
+            public void linksCallback(Exception e) {
                 Log.d(LOG_TAG, "dataUpdateCallback() called with: " + "e = [" + e + "]");
                 if (view != null) {
-                    Snackbar.make(view, "Downloaded more links", Snackbar.LENGTH_LONG)
-                            .setAction("Action", null)
-                            .show();
+                    Snackbar.make(view, "Downloaded more links", Snackbar.LENGTH_LONG).setAction(
+                            "Action", null).show();
                 }
                 updateElapsedTimeTextView();
             }
         };
     }
-
-    private ServiceConnection mRedditServiceConnection = new ServiceConnection() {
-        private static final String LOG_TAG = "ServiceConnection";
-
-        public void onServiceConnected(ComponentName className, IBinder iBinder) {
-            Log.d(LOG_TAG, "onServiceConnected() called with: " + "className = [" + className + "], iBinder = [" + iBinder + "]");
-            RedditService.RedditBinder redditBinder = (RedditService.RedditBinder) iBinder;
-            mRedditService = redditBinder.getService();
-            if(mRedditService == null) {
-                return;
-                // TODO: Handle service unavailable, perform retries
-            }
-            mRedditService.getMoreLinks(mSubredditRequest, handleRedditDataUpdate(null));
-
-            if (mFab != null) {
-                mFab.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(final View view) {
-                        final Link lastLink = mRedditService.getLink(mRedditService.getLinkCount() - 1);
-                        if (lastLink != null) {
-                            mRedditService.downvoteLink(lastLink, new RedditVoteCallback() {
-                                @Override
-                                public void voteCallback(Exception e) {
-                                    if (e != null) {
-                                        Snackbar.make(view, "Error when voting: " + e.getLocalizedMessage(),
-                                                Snackbar.LENGTH_INDEFINITE).show();
-                                    } else {
-                                        Snackbar.make(view, "Downvoted " + lastLink.getTitle(),
-                                                Snackbar.LENGTH_SHORT).show();
-                                    }
-                                }
-                            });
-                        }
-                    }
-                });
-            }
-            if (mGetMoreLinksButton != null) {
-                mGetMoreLinksButton.setOnClickListener(new View.OnClickListener() {
-                    @Override
-                    public void onClick(final View view) {
-                        mRedditService.getMoreLinks(mSubredditRequest, handleRedditDataUpdate(view));
-                    }
-                });
-            }
-        }
-
-        public void onServiceDisconnected(ComponentName className) {
-            Log.d(LOG_TAG, "onServiceDisconnected() called with: " + "className = [" + className + "]");
-            mRedditService = null;
-        }
-    };
 }

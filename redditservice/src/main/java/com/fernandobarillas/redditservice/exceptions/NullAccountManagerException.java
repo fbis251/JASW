@@ -4,9 +4,9 @@ package com.fernandobarillas.redditservice.exceptions;
  * Created by fb on 12/15/15.
  */
 public class NullAccountManagerException extends Exception {
-    private final static String detailMessage = "AccountManager instance is null";
+    private final static String DETAIL_MESSAGE = "AccountManager instance is null";
 
     public NullAccountManagerException() {
-        super(detailMessage);
+        super(DETAIL_MESSAGE);
     }
 }

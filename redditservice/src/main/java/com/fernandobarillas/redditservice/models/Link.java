@@ -48,75 +48,6 @@ public class Link extends PublicContribution {
         mId = submission.getId();
     }
 
-    public String getAuthor() {
-        return mAuthor;
-    }
-
-    public Boolean isNsfw() {
-        return mIsNsfw;
-    }
-
-    public Boolean isSaved() {
-        return mIsSaved;
-    }
-
-    public String getDomain() {
-        return mDomain;
-    }
-
-    public Double getUpvoteRatio() {
-        return mUpvoteRatio;
-    }
-
-    public String getPermalink() {
-        return mPermaLink;
-    }
-
-    public String getSubredditName() {
-        return mSubredditName;
-    }
-
-    public String getThumbnail() {
-        return mThumbnail;
-    }
-
-    public String getTitle() {
-        return mTitle;
-    }
-
-    public String getUrl() {
-        return mUrl;
-    }
-
-    public String getShortURL() {
-        return mShortUrl;
-    }
-
-    public Integer getScore() {
-        return mScore;
-    }
-
-    public Date getCreatedUtc() {
-        return mCreatedUtc;
-    }
-
-    public VoteDirection getVote() {
-        return mVoteDirection;
-    }
-
-    public String getFullName() {
-        return mFullName;
-    }
-
-    public String getId() {
-        return mId;
-    }
-
-    @Override
-    public int hashCode() {
-        return getId().hashCode();
-    }
-
     @Override
     public boolean equals(Object otherObject) {
         if (this == otherObject) {
@@ -132,5 +63,74 @@ public class Link extends PublicContribution {
 
         // Compare the ID String values and use that as the return value
         return this.getId().equals(thing.getId());
+    }
+
+    @Override
+    public int hashCode() {
+        return getId().hashCode();
+    }
+
+    public String getAuthor() {
+        return mAuthor;
+    }
+
+    public Date getCreatedUtc() {
+        return mCreatedUtc;
+    }
+
+    public String getDomain() {
+        return mDomain;
+    }
+
+    public String getId() {
+        return mId;
+    }
+
+    public String getFullName() {
+        return mFullName;
+    }
+
+    public String getPermalink() {
+        return mPermaLink;
+    }
+
+    public Integer getScore() {
+        return mScore;
+    }
+
+    public VoteDirection getVote() {
+        return mVoteDirection;
+    }
+
+    public String getShortURL() {
+        return mShortUrl;
+    }
+
+    public String getSubredditName() {
+        return mSubredditName;
+    }
+
+    public String getThumbnail() {
+        return mThumbnail;
+    }
+
+    public String getTitle() {
+        return mTitle;
+    }
+
+    public Double getUpvoteRatio() {
+        return mUpvoteRatio;
+    }
+
+    public String getUrl() {
+        return mUrl;
+    }
+
+    public Boolean isNsfw() {
+        return mIsNsfw;
+    }
+
+    public Boolean isSaved() {
+        return mIsSaved;
     }
 }

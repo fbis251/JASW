@@ -14,10 +14,8 @@ public class AuthenticationRequest {
     private String mRedditRedirectUrl;
     private RedditAuthenticationCallback mAuthenticationCallback;
 
-    public AuthenticationRequest(RedditClient redditClient,
-                                 String refreshToken,
-                                 String redditClientId,
-                                 String redditRedirectUrl,
+    public AuthenticationRequest(RedditClient redditClient, String refreshToken,
+                                 String redditClientId, String redditRedirectUrl,
                                  RedditAuthenticationCallback authenticationCallback) {
         mRedditClient = redditClient;
         mRefreshToken = refreshToken;
@@ -26,12 +24,12 @@ public class AuthenticationRequest {
         mAuthenticationCallback = authenticationCallback;
     }
 
-    public RedditClient getRedditClient() {
-        return mRedditClient;
+    public RedditAuthenticationCallback getAuthenticationCallback() {
+        return mAuthenticationCallback;
     }
 
-    public String getRefreshToken() {
-        return mRefreshToken;
+    public RedditClient getRedditClient() {
+        return mRedditClient;
     }
 
     public String getRedditClientId() {
@@ -42,7 +40,7 @@ public class AuthenticationRequest {
         return mRedditRedirectUrl;
     }
 
-    public RedditAuthenticationCallback getAuthenticationCallback() {
-        return mAuthenticationCallback;
+    public String getRefreshToken() {
+        return mRefreshToken;
     }
 }

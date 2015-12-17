@@ -16,15 +16,12 @@ public class SaveRequest {
     private AccountManager mAccountManager;
     private RedditSaveCallback mRedditSaveCallback;
 
-    public SaveRequest(Link link, boolean save, AccountManager accountManager, RedditSaveCallback redditSaveCallback) {
+    public SaveRequest(Link link, boolean save, AccountManager accountManager,
+                       RedditSaveCallback redditSaveCallback) {
         mLink = link;
         mSave = save;
         mAccountManager = accountManager;
         mRedditSaveCallback = redditSaveCallback;
-    }
-
-    public Link getLink() {
-        return mLink;
     }
 
     public boolean doSave() {
@@ -33,6 +30,10 @@ public class SaveRequest {
 
     public AccountManager getAccountManager() {
         return mAccountManager;
+    }
+
+    public Link getLink() {
+        return mLink;
     }
 
     public RedditSaveCallback getRedditSaveCallback() {

@@ -15,26 +15,27 @@ public class VoteRequest {
     private AccountManager mAccountManager;
     private RedditVoteCallback mRedditVoteCallback;
 
-    public VoteRequest(Link link, VoteDirection voteDirection, AccountManager accountManager, RedditVoteCallback redditVoteCallback) {
+    public VoteRequest(Link link, VoteDirection voteDirection, AccountManager accountManager,
+                       RedditVoteCallback redditVoteCallback) {
         mLink = link;
         mVoteDirection = voteDirection;
         mAccountManager = accountManager;
         mRedditVoteCallback = redditVoteCallback;
     }
 
-    public Link getLink() {
-        return mLink;
-    }
-
-    public VoteDirection getVoteDirection() {
-        return mVoteDirection;
-    }
-
     public AccountManager getAccountManager() {
         return mAccountManager;
     }
 
+    public Link getLink() {
+        return mLink;
+    }
+
     public RedditVoteCallback getRedditVoteCallback() {
         return mRedditVoteCallback;
+    }
+
+    public VoteDirection getVoteDirection() {
+        return mVoteDirection;
     }
 }
