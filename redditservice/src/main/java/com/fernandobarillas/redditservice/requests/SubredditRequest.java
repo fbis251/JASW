@@ -1,12 +1,12 @@
 package com.fernandobarillas.redditservice.requests;
 
+import android.support.annotation.NonNull;
+
 import com.fernandobarillas.redditservice.callbacks.RedditLinksCallback;
 import com.fernandobarillas.redditservice.links.validators.LinkValidator;
 
 import net.dean.jraw.paginators.Sorting;
 import net.dean.jraw.paginators.TimePeriod;
-
-import android.support.annotation.NonNull;
 
 /**
  * Created by fb on 12/14/15.
@@ -17,7 +17,9 @@ public class SubredditRequest {
     private final TimePeriod mTimePeriod;
     private final int mLinkLimit;
     private final LinkValidator mLinkValidator;
-    private final RedditLinksCallback mRedditLinksCallback;
+    // Only the callback should be dynamically changed since it's the only field nto passed in to
+    // the JRAW Paginator which will avoid getting an exception when the Paginator state changes
+    private RedditLinksCallback mRedditLinksCallback;
 
     private SubredditRequest(Builder builder) {
         mSubreddit = builder.subreddit;
@@ -26,18 +28,6 @@ public class SubredditRequest {
         mLinkLimit = builder.mLinkLimit;
         mLinkValidator = builder.mLinkValidator;
         mRedditLinksCallback = builder.mRedditLinksCallback;
-    }
-
-    public String getSubreddit() {
-        return mSubreddit;
-    }
-
-    public Sorting getSorting() {
-        return mSorting;
-    }
-
-    public TimePeriod getTimePeriod() {
-        return mTimePeriod;
     }
 
     public int getLinkLimit() {
@@ -50,6 +40,22 @@ public class SubredditRequest {
 
     public RedditLinksCallback getRedditLinksCallback() {
         return mRedditLinksCallback;
+    }
+
+    public void setRedditLinksCallback(RedditLinksCallback linksCallback) {
+        mRedditLinksCallback = linksCallback;
+    }
+
+    public Sorting getSorting() {
+        return mSorting;
+    }
+
+    public String getSubreddit() {
+        return mSubreddit;
+    }
+
+    public TimePeriod getTimePeriod() {
+        return mTimePeriod;
     }
 
     public static class Builder {
@@ -67,14 +73,8 @@ public class SubredditRequest {
             this.subreddit = subreddit;
         }
 
-        public Builder setSorting(Sorting sorting) {
-            mSorting = sorting;
-            return this;
-        }
-
-        public Builder setTimePeriod(TimePeriod timePeriod) {
-            mTimePeriod = timePeriod;
-            return this;
+        public SubredditRequest build() {
+            return new SubredditRequest(this);
         }
 
         public Builder setLinkLimit(int linkLimit) {
@@ -92,8 +92,14 @@ public class SubredditRequest {
             return this;
         }
 
-        public SubredditRequest build() {
-            return new SubredditRequest(this);
+        public Builder setSorting(Sorting sorting) {
+            mSorting = sorting;
+            return this;
+        }
+
+        public Builder setTimePeriod(TimePeriod timePeriod) {
+            mTimePeriod = timePeriod;
+            return this;
         }
     }
 }

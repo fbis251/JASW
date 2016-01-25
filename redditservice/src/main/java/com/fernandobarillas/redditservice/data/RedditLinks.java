@@ -1,7 +1,11 @@
 package com.fernandobarillas.redditservice.data;
 
+import android.os.AsyncTask;
+import android.util.Log;
+
 import com.fernandobarillas.redditservice.callbacks.LinkDownloadCallback;
 import com.fernandobarillas.redditservice.callbacks.RedditLinksCallback;
+import com.fernandobarillas.redditservice.links.filters.LinkFilter;
 import com.fernandobarillas.redditservice.links.validators.LinkValidator;
 import com.fernandobarillas.redditservice.models.Link;
 import com.fernandobarillas.redditservice.requests.LinkDownloadRequest;
@@ -10,9 +14,6 @@ import com.fernandobarillas.redditservice.tasks.LinkDownloadTask;
 
 import net.dean.jraw.RedditClient;
 import net.dean.jraw.paginators.SubredditPaginator;
-
-import android.os.AsyncTask;
-import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
@@ -26,10 +27,10 @@ import java.util.List;
  * API (Hot, New, Top, etc.), and filtering out any posts marked as NSFW.
  */
 public class RedditLinks {
-    public static final int LINK_LIMIT = 100;
-    // Logging
-    private static final String LOG_TAG = RedditLinks.class.getSimpleName();
-
+    public static final int MAX_LINK_LIMIT = 100; // Max link limit supported by reddit API
+    // Last Link viewed tracking
+    public static final int NO_LAST_LINK_VIEWED = -1;
+    private static final String LOG_TAG = "RedditLinks";
     // Reddit client and data
     private ArrayList<Link> mLinksList;
 
@@ -37,9 +38,12 @@ public class RedditLinks {
 
     private SubredditPaginator mSubredditPaginator;
 
+    private SubredditRequest mSubredditRequest;
+
     private LinkDownloadTask mLinkDownloadTask;
 
-    private boolean mGetNewLinks;
+    private int mLastViewedLink = NO_LAST_LINK_VIEWED;
+    // Used to keep position, for example in a RecyclerView
 
     private int mNsfwImageCount; // How many nsfw images were downloaded
 
@@ -47,28 +51,9 @@ public class RedditLinks {
         Log.d(LOG_TAG, "RedditLinks() called with: " + "redditClient = [" + redditClient + "]");
         mRedditClient = redditClient;
         mLinksList = new ArrayList<>();
-        mGetNewLinks = true;
         mSubredditPaginator = null;
+        mSubredditRequest = null;
         mNsfwImageCount = 0;
-    }
-
-    /**
-     * Executes a callback method. Used in {@link LinkDownloadTask} in the onPostExecute method.
-     * This method is only meant to be executed when the download task has successfully added new
-     * Links.
-     *
-     * @param redditLinksCallback The callback to execute
-     */
-    private void executeCallback(Exception e, final RedditLinksCallback redditLinksCallback) {
-        Log.v(LOG_TAG, "executeCallback()");
-
-        // Make sure a callback has been set
-        if (redditLinksCallback == null) {
-            return;
-        }
-
-        // Now that we know the callback isn't null, execute it
-        redditLinksCallback.linksCallback(e);
     }
 
     /**
@@ -89,6 +74,107 @@ public class RedditLinks {
         // Create a new download task to get more Links from reddit
         mLinkDownloadTask = new LinkDownloadTask();
         mLinkDownloadTask.execute(linkDownloadRequest);
+    }
+
+    /**
+     * Gets the number of Links the app has downloaded from Reddit.
+     *
+     * @return The total count of image Links the app has downloaded.
+     */
+    public int getCount() {
+        return mLinksList.size();
+    }
+
+    /**
+     * Returns the last viewed Link. Needs to be set manually
+     */
+    public int getLastViewedLink() {
+        return mLastViewedLink;
+    }
+
+    /**
+     * Sets the last viewed Link in the Link List
+     */
+    public void setLastViewedLink(int lastViewedLink) {
+        mLastViewedLink = lastViewedLink;
+    }
+
+    /**
+     * Gets a specific reddit Link from the List.
+     *
+     * @param whichLink The ID of the Link to return.
+     * @return The Link with ID whichLink.
+     */
+    public Link getLink(int whichLink) {
+        if (whichLink < mLinksList.size() && whichLink >= 0) {
+            return mLinksList.get(whichLink);
+        }
+
+        return null;
+    }
+
+    /**
+     * This method verifies that we are not currently attempting to download reddit links. Because
+     * executeLinkDownload is a synchronized method, we do not want to queue more calls to it than
+     * necessary.
+     */
+    public void getMoreLinks(final RedditLinksCallback linksCallback) {
+        Log.v(LOG_TAG, "getMoreLinks()");
+
+        if (mLinkDownloadTask != null && mLinkDownloadTask.getStatus() == AsyncTask.Status.RUNNING) {
+            Log.w(LOG_TAG, "DownloadFilesTask Already downloading data, returning");
+            return;
+        }
+
+        mSubredditRequest.setRedditLinksCallback(linksCallback);
+        executeLinkDownload(mSubredditRequest);
+    }
+
+    /**
+     * Notifies the LinkDownloadTask to get new links instead of getting more links from reddit.
+     *
+     * @param subredditRequest The new subreddit to download links from
+     */
+    public void getNewLinks(final SubredditRequest subredditRequest) {
+        Log.v(LOG_TAG, "getNewLinks() called with: " + "subredditRequest = [" + subredditRequest + "]");
+        // Discard the old List to force a download of new data
+        mLinksList = new ArrayList<>();
+        // Force instantiation of a new Paginator to avoid it throwing an IllegalStateException
+        mSubredditPaginator = null;
+        // Use the passed in subredditRequest to pass into our download task and paginators
+        mSubredditRequest = subredditRequest;
+
+        // Cancel the current download task since we will be downloading new links
+        if (mLinkDownloadTask != null) {
+            Log.i(LOG_TAG, "Cancelling pending link download");
+            mLinkDownloadTask.cancel(true);
+            mLinkDownloadTask = null;
+        }
+
+        getMoreLinks(subredditRequest.getRedditLinksCallback());
+    }
+
+    /**
+     * Gets the number of NSFW images that were downloaded in the last request. Useful when no
+     * "valid" links were downloaded and the user has NSFW images disabled. This will allow the
+     * user
+     * to be displayed a message asking them to enable NSFW content if desired
+     *
+     * @return The number of NSFW images that were downloaded in the last request.
+     */
+    public int getNsfwImageCount() {
+        return mNsfwImageCount;
+    }
+
+    /**
+     * Gets the current, full List of reddit Links the application has downloaded.
+     *
+     * @return A List containing all the downloaded reddit Links.
+     */
+    public List<Link> getRedditLinksList() {
+        Log.v(LOG_TAG, "getRedditLinks()");
+
+        return mLinksList;
     }
 
     /**
@@ -136,92 +222,6 @@ public class RedditLinks {
                 }
             }
         };
-    }
-
-    /**
-     * Gets the number of Links the app has downloaded from Reddit.
-     *
-     * @return The total count of image Links the app has downloaded.
-     */
-    public int getCount() {
-        return mLinksList.size();
-    }
-
-    /**
-     * Gets a specific reddit Link from the List.
-     *
-     * @param whichLink The ID of the Link to return.
-     * @return The Link with ID whichLink.
-     */
-    public Link getLink(int whichLink) {
-        if (whichLink < mLinksList.size() && whichLink >= 0) {
-            return mLinksList.get(whichLink);
-        }
-
-        return null;
-    }
-
-    /**
-     * This method verifies that we are not currently attempting to download reddit links. Because
-     * executeLinkDownload is a synchronized method, we do not want to queue more calls to it than
-     * necessary.
-     */
-    public void getMoreLinks(SubredditRequest subredditRequest) {
-        Log.v(LOG_TAG, "getMoreLinks()");
-
-        if (mLinkDownloadTask != null && mLinkDownloadTask.getStatus() == AsyncTask.Status.RUNNING) {
-            Log.w(LOG_TAG, "DownloadFilesTask Already downloading data, returning");
-            return;
-        }
-
-        executeLinkDownload(subredditRequest);
-    }
-
-    /**
-     * Notifies the LinkDownloadTask to get new links instead of getting more links from reddit.
-     *
-     * @param getNewLinks True to get new Links, discarding the Links already downloaded. False to
-     *                    get more links in addition to the ones already downloaded.
-     */
-    public void getNewLinks(boolean getNewLinks) {
-        mGetNewLinks = getNewLinks;
-
-        if (mGetNewLinks) {
-            // Discard the old List to force a download of new data
-            mLinksList = new ArrayList<>();
-            // Force instantiation of a new Paginator to avoid it throwing an IllegalStateException
-            mSubredditPaginator = null;
-        }
-
-        // Cancel the current download task since we will be downloading new links
-        if (mLinkDownloadTask != null) {
-            Log.i(LOG_TAG, "Cancelling pending link download");
-            mLinkDownloadTask.cancel(true);
-            mLinkDownloadTask = null;
-        }
-    }
-
-    /**
-     * Gets the number of NSFW images that were downloaded in the last request. Useful when no
-     * "valid" links were downloaded and the user has NSFW images disabled. This will allow the
-     * user
-     * to be displayed a message asking them to enable NSFW content if desired
-     *
-     * @return The number of NSFW images that were downloaded in the last request.
-     */
-    public int getNsfwImageCount() {
-        return mNsfwImageCount;
-    }
-
-    /**
-     * Gets the current, full List of reddit Links the application has downloaded.
-     *
-     * @return A List containing all the downloaded reddit Links.
-     */
-    public List<Link> getRedditLinksList() {
-        Log.v(LOG_TAG, "getRedditLinks()");
-
-        return mLinksList;
     }
 
     /**

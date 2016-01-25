@@ -1,5 +1,7 @@
 package com.fernandobarillas.redditservice.data;
 
+import android.util.Log;
+
 import com.fernandobarillas.redditservice.callbacks.RedditSaveCallback;
 import com.fernandobarillas.redditservice.callbacks.RedditVoteCallback;
 import com.fernandobarillas.redditservice.exceptions.SameVoteDirectionException;
@@ -12,8 +14,6 @@ import com.fernandobarillas.redditservice.tasks.VoteTask;
 import net.dean.jraw.RedditClient;
 import net.dean.jraw.managers.AccountManager;
 import net.dean.jraw.models.VoteDirection;
-
-import android.util.Log;
 
 /**
  * Created by fb on 12/14/15.
@@ -40,14 +40,14 @@ public class RedditAccount {
         voteLink(link, VoteDirection.NO_VOTE, voteCallback);
     }
 
-    public void saveLink(Link link, RedditSaveCallback saveCallback) {
+    public void saveLink(final Link link, final RedditSaveCallback saveCallback) {
         Log.d(LOG_TAG,
                 "saveLink() called with: " + "link = [" + link + "], saveCallback = [" + saveCallback + "]");
         saveLink(link, SaveRequest.SAVE, saveCallback);
     }
 
-    private void saveLink(Link link, boolean doSave, RedditSaveCallback saveCallback) {
-        // TODO: Use a FIFO queue for any saving
+    private void saveLink(final Link link, boolean doSave, final RedditSaveCallback saveCallback) {
+        // TODO: Use a FIFO queue for any saving?
         if (link.isSaved() == doSave) {
             saveCallback.saveCallback(new SameVoteDirectionException());
         }
@@ -56,7 +56,7 @@ public class RedditAccount {
         saveTask.execute(saveRequest);
     }
 
-    public void unsaveLink(Link link, RedditSaveCallback saveCallback) {
+    public void unsaveLink(final Link link, final RedditSaveCallback saveCallback) {
         Log.d(LOG_TAG,
                 "unsaveLink() called with: " + "link = [" + link + "], saveCallback = [" + saveCallback + "]");
         saveLink(link, SaveRequest.UNSAVE, saveCallback);

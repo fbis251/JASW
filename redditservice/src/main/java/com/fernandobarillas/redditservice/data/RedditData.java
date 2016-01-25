@@ -1,6 +1,11 @@
 package com.fernandobarillas.redditservice.data;
 
+import android.text.TextUtils;
+import android.util.Log;
+
 import com.fernandobarillas.redditservice.callbacks.RedditAuthenticationCallback;
+import com.fernandobarillas.redditservice.callbacks.RedditLinksCallback;
+import com.fernandobarillas.redditservice.callbacks.RedditSaveCallback;
 import com.fernandobarillas.redditservice.callbacks.RedditVoteCallback;
 import com.fernandobarillas.redditservice.models.Link;
 import com.fernandobarillas.redditservice.requests.AuthenticationRequest;
@@ -10,9 +15,6 @@ import com.fernandobarillas.redditservice.tasks.AuthenticationTask;
 import net.dean.jraw.RedditClient;
 import net.dean.jraw.http.LoggingMode;
 import net.dean.jraw.http.UserAgent;
-
-import android.text.TextUtils;
-import android.util.Log;
 
 import java.util.List;
 
@@ -48,11 +50,12 @@ public class RedditData {
         mRedditClient = new RedditClient(mUserAgent);
         // TODO: Handle setting logging mode when app isn't debuggable
         mRedditClient.setLoggingMode(LoggingMode.ALWAYS);
+//        mRedditClient.setLoggingMode(LoggingMode.ON_FAIL);
         mRedditClient.setRetryLimit(DOWNLOAD_RETRIES);
 
 //        mRedditClient.hasActiveUserContext() // TODO: Check if user or app-only authenticated
-
-        verifyAuthentication(null);
+//
+//        verifyAuthentication(null);
         mRedditLinks = new RedditLinks(mRedditClient);
         mRedditAccount = new RedditAccount(mRedditClient);
 //        verifyAuthentication(new RedditAuthenticationCallback() {
@@ -66,8 +69,7 @@ public class RedditData {
 
     public static RedditData getInstance(UserAgent userAgent, String refreshToken,
                                          String redditClientId, String redditRedirectUrl) {
-        Log.d(LOG_TAG,
-                "getInstance() refreshToken = [HIDDEN], redditClientId = [HIDDEN], redditRedirectUrl = [HIDDEN]");
+        Log.v(LOG_TAG, "getInstance() called with: " + "userAgent = [" + userAgent + "]");
 
         if (sInstance == null) {
             sInstance = new RedditData(userAgent, refreshToken, redditClientId, redditRedirectUrl);
@@ -78,8 +80,7 @@ public class RedditData {
 
     public static RedditData newInstance(UserAgent userAgent, String refreshToken,
                                          String redditClientId, String redditRedirectUrl) {
-        Log.d(LOG_TAG,
-                "getInstance() refreshToken = [HIDDEN], redditClientId = [HIDDEN], redditRedirectUrl = [HIDDEN]");
+        Log.v(LOG_TAG, "newInstance() called with: " + "userAgent = [" + userAgent + "]");
         sInstance = null;
         return getInstance(userAgent, refreshToken, redditClientId, redditRedirectUrl);
     }
@@ -95,6 +96,14 @@ public class RedditData {
         });
     }
 
+    public int getLastViewedLink() {
+        return mRedditLinks.getLastViewedLink();
+    }
+
+    public void setLastViewedLink(int lastViewedLink) {
+        mRedditLinks.setLastViewedLink(lastViewedLink);
+    }
+
     public Link getLink(int whichLink) {
         return mRedditLinks.getLink(whichLink);
     }
@@ -103,23 +112,22 @@ public class RedditData {
         return mRedditLinks.getCount();
     }
 
-    public void getMoreLinks(final SubredditRequest subredditRequest) {
-        Log.d(LOG_TAG,
-                "getMoreLinks() called with: " + "subredditRequest = [" + subredditRequest + "]");
+    public void getMoreLinks(final RedditLinksCallback linksCallback) {
+        Log.v(LOG_TAG, "getMoreLinks()");
         verifyAuthentication(new RedditAuthenticationCallback() {
             @Override
             public void authenticationCallback(Exception e) {
-                mRedditLinks.getMoreLinks(subredditRequest);
+                mRedditLinks.getMoreLinks(linksCallback);
             }
         });
     }
 
-    public void getNewLinks(final boolean getNewLinks) {
-        Log.d(LOG_TAG, "getNewLinks() called with: " + "getNewLinks = [" + getNewLinks + "]");
+    public void getNewLinks(final SubredditRequest subredditRequest) {
+        Log.v(LOG_TAG, "getNewLinks() called with: " + "subredditRequest = [" + subredditRequest + "]");
         verifyAuthentication(new RedditAuthenticationCallback() {
             @Override
             public void authenticationCallback(Exception e) {
-                mRedditLinks.getNewLinks(getNewLinks);
+                mRedditLinks.getNewLinks(subredditRequest);
             }
         });
     }
@@ -137,6 +145,16 @@ public class RedditData {
                 mRedditAccount.removeVote(link, voteCallback);
             }
         });
+    }
+
+    public void saveLink(final Link link, final RedditSaveCallback saveCallback) {
+        Log.v(LOG_TAG, "saveLink() called with: " + "link = [" + link + "], saveCallback = [" + saveCallback + "]");
+        mRedditAccount.saveLink(link, saveCallback);
+    }
+
+    public void unsaveLink(final Link link, final RedditSaveCallback saveCallback) {
+        Log.v(LOG_TAG, "unsaveLink() called with: " + "link = [" + link + "], saveCallback = [" + saveCallback + "]");
+        mRedditAccount.unsaveLink(link, saveCallback);
     }
 
     public void upvoteLink(final Link link, final RedditVoteCallback voteCallback) {

@@ -1,12 +1,12 @@
 package com.fernandobarillas.redditservice.tasks;
 
+import android.os.AsyncTask;
+import android.util.Log;
+
 import com.fernandobarillas.redditservice.exceptions.NullAccountManagerException;
 import com.fernandobarillas.redditservice.requests.SaveRequest;
 
 import net.dean.jraw.managers.AccountManager;
-
-import android.os.AsyncTask;
-import android.util.Log;
 
 /**
  * Created by fb on 12/15/15.
@@ -32,11 +32,9 @@ public class SaveTask extends AsyncTask<SaveRequest, Void, Exception> {
 
         try {
             if (mSaveRequest.doSave()) {
-                // TODO: Enable saving any PublicContribution
-//                mSaveRequest.getAccountManager().save(mSaveRequest.getLink());
+                mSaveRequest.getAccountManager().save(mSaveRequest.getLink());
             } else {
-                // TODO: Enable saving any PublicContribution
-//                mSaveRequest.getAccountManager().unsave(mSaveRequest.getLink());
+                mSaveRequest.getAccountManager().unsave(mSaveRequest.getLink());
             }
 
             return null;
