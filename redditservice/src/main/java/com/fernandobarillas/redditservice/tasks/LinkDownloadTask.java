@@ -1,5 +1,8 @@
 package com.fernandobarillas.redditservice.tasks;
 
+import android.os.AsyncTask;
+import android.util.Log;
+
 import com.fernandobarillas.redditservice.callbacks.LinkDownloadCallback;
 import com.fernandobarillas.redditservice.data.RedditData;
 import com.fernandobarillas.redditservice.exceptions.AuthenticationException;
@@ -11,9 +14,6 @@ import net.dean.jraw.RedditClient;
 import net.dean.jraw.models.Listing;
 import net.dean.jraw.models.Submission;
 import net.dean.jraw.paginators.SubredditPaginator;
-
-import android.os.AsyncTask;
-import android.util.Log;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -97,9 +97,8 @@ public class LinkDownloadTask extends AsyncTask<LinkDownloadRequest, Void, Excep
 
     /**
      * Executed when the download task is finished. This will add all the newly downloaded and
-     * filtered Links to the main List, removing any duplicates found, and will ultimately execute
-     * a
-     * callback method if set.
+     * filtered Links to the main List, removing any duplicates found, and will ultimately execute a
+     * onComplete method if set.
      */
     protected void onPostExecute(Exception e) {
         Log.v(LOG_TAG, "onPostExecute()");
@@ -116,12 +115,9 @@ public class LinkDownloadTask extends AsyncTask<LinkDownloadRequest, Void, Excep
             return;
         }
 
-        Log.i(LOG_TAG,
-                String.format("onPostExecute: Downloaded %d new links", mNewLinkList.size()));
+        Log.i(LOG_TAG, String.format("onPostExecute: Downloaded %d new links", mNewLinkList.size()));
 
-        // Execute the callback now that we have new data
-        if (linkDownloadCallback != null) {
-            linkDownloadCallback.linkDownloadCallback(mNewLinkList, e);
-        }
+        // Execute the onComplete now that we have new data
+        linkDownloadCallback.linkDownloadCallback(mNewLinkList, e);
     }
 }

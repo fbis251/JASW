@@ -5,6 +5,7 @@ import android.util.Log;
 
 import com.fernandobarillas.redditservice.callbacks.LinkDownloadCallback;
 import com.fernandobarillas.redditservice.callbacks.RedditLinksCallback;
+import com.fernandobarillas.redditservice.exceptions.LinksListNullException;
 import com.fernandobarillas.redditservice.links.filters.LinkFilter;
 import com.fernandobarillas.redditservice.links.validators.LinkValidator;
 import com.fernandobarillas.redditservice.models.Link;
@@ -21,8 +22,7 @@ import java.util.List;
 
 /**
  * A class to easily download Links using the reddit API. The Links are verified for validity and
- * all duplicates are removed. Downloads happen in a background thread to prevent blocking. There
- * is
+ * all duplicates are removed. Downloads happen in a background thread to prevent blocking. There is
  * also support for downloading posts from specific subreddits and sorting the Links using reddit's
  * API (Hot, New, Top, etc.), and filtering out any posts marked as NSFW.
  */
@@ -63,14 +63,12 @@ public class RedditLinks {
      * the gallery.
      */
     private synchronized void executeLinkDownload(final SubredditRequest subredditRequest) {
-        Log.d(LOG_TAG,
-                "executeLinkDownload() called with: " + "subredditRequest = [" + subredditRequest + "]");
+        Log.d(LOG_TAG, "executeLinkDownload() called with: " + "subredditRequest = [" + subredditRequest + "]");
 
         validatePaginator(subredditRequest);
 
-        LinkDownloadRequest linkDownloadRequest = new LinkDownloadRequest(mRedditClient,
-                mSubredditPaginator,
-                linkDownloadCallbackHandler(subredditRequest));
+        LinkDownloadRequest linkDownloadRequest =
+                new LinkDownloadRequest(mRedditClient, mSubredditPaginator, linkDownloadCallbackHandler(subredditRequest));
         // Create a new download task to get more Links from reddit
         mLinkDownloadTask = new LinkDownloadTask();
         mLinkDownloadTask.execute(linkDownloadRequest);
@@ -156,8 +154,7 @@ public class RedditLinks {
 
     /**
      * Gets the number of NSFW images that were downloaded in the last request. Useful when no
-     * "valid" links were downloaded and the user has NSFW images disabled. This will allow the
-     * user
+     * "valid" links were downloaded and the user has NSFW images disabled. This will allow the user
      * to be displayed a message asking them to enable NSFW content if desired
      *
      * @return The number of NSFW images that were downloaded in the last request.
@@ -184,15 +181,27 @@ public class RedditLinks {
      *
      * @param subredditRequest The request which contains instances of {@link LinkValidator} and
      *                         {@link LinkFilter} instances
-     * @return The callback instance to be used after new links are successfully downloaded
+     * @return The onComplete instance to be used after new links are successfully downloaded
      */
     private LinkDownloadCallback linkDownloadCallbackHandler(final SubredditRequest subredditRequest) {
         Log.d(LOG_TAG, "linkDownloadCallbackHandler() called with: " + "subredditRequest = [" + subredditRequest + "]");
         return new LinkDownloadCallback() {
             @Override
             public void linkDownloadCallback(List<Link> newLinksList, Exception e) {
+                Log.v(LOG_TAG, "linkDownloadCallback() called with: " + "newLinksList = [" + newLinksList + "], e = [" + e + "]");
+                RedditLinksCallback redditLinksCallback = subredditRequest.getRedditLinksCallback();
+                if (newLinksList == null) {
+                    Log.e(LOG_TAG, "linkDownloadCallback: Links list was null! Unknown error");
+                    if (redditLinksCallback != null) {
+                        redditLinksCallback.linksCallback(new LinksListNullException());
+                    }
+
+                    return;
+                }
+
                 // Attempt to only add Links that are marked as valid by the passed in LinkValidator
                 LinkValidator linkValidator = subredditRequest.getLinkValidator();
+                mNsfwImageCount = 0;
                 int oldLinkCount = mLinksList.size();
                 if (linkValidator != null) {
                     Log.d(LOG_TAG, "linkDownloadCallback: Validating Links");
@@ -200,6 +209,9 @@ public class RedditLinks {
                     for (Link link : newLinksList) {
                         if (linkValidator.isLinkValid(link)) {
                             mLinksList.add(link);
+                        }
+                        if (link.isNsfw()) {
+                            mNsfwImageCount++;
                         }
                     }
                 } else {
@@ -215,8 +227,6 @@ public class RedditLinks {
                 int newLinkCount = mLinksList.size() - oldLinkCount;
                 Log.i(LOG_TAG, String.format("linkDownloadCallback: Downloaded %d new Links", newLinkCount));
 
-                // Make sure
-                RedditLinksCallback redditLinksCallback = subredditRequest.getRedditLinksCallback();
                 if (redditLinksCallback != null) {
                     redditLinksCallback.linksCallback(e);
                 }
@@ -243,8 +253,7 @@ public class RedditLinks {
      * @param subredditRequest The user-requested subreddit to load links from
      */
     private void validatePaginator(SubredditRequest subredditRequest) {
-        Log.d(LOG_TAG,
-                "validatePaginator() called with: " + "subredditRequest = [" + subredditRequest + "]");
+        Log.d(LOG_TAG, "validatePaginator() called with: " + "subredditRequest = [" + subredditRequest + "]");
         String subreddit = subredditRequest.getSubreddit();
 
         // The source of the data will be reddit, we'll save the listings and the list of links

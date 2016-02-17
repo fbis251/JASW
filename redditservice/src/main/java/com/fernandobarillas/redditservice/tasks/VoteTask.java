@@ -1,12 +1,12 @@
 package com.fernandobarillas.redditservice.tasks;
 
+import android.os.AsyncTask;
+import android.util.Log;
+
 import com.fernandobarillas.redditservice.exceptions.NullAccountManagerException;
 import com.fernandobarillas.redditservice.requests.VoteRequest;
 
 import net.dean.jraw.managers.AccountManager;
-
-import android.os.AsyncTask;
-import android.util.Log;
 
 /**
  * Created by fb on 12/15/15.
@@ -46,12 +46,12 @@ public class VoteTask extends AsyncTask<VoteRequest, Void, Exception> {
         Log.d(LOG_TAG, "onPostExecute() called with: " + "e = [" + e + "]");
         super.onPostExecute(e);
 
-        // Make sure a callback has been set
+        // Make sure a onComplete has been set
         if (mVoteRequest.getRedditVoteCallback() == null) {
             return;
         }
 
-        // Now that we know the callback isn't null, execute it
+        // Now that we know the onComplete isn't null, execute it
         mVoteRequest.getRedditVoteCallback().voteCallback(e);
     }
 }

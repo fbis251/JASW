@@ -49,12 +49,12 @@ public class SaveTask extends AsyncTask<SaveRequest, Void, Exception> {
         Log.d(LOG_TAG, "onPostExecute() called with: " + "e = [" + e + "]");
         super.onPostExecute(e);
 
-        // Make sure a callback has been set
+        // Make sure a onComplete has been set
         if (mSaveRequest.getRedditSaveCallback() == null) {
             return;
         }
 
-        // Now that we know the callback isn't null, execute it
+        // Now that we know the onComplete isn't null, execute it
         mSaveRequest.getRedditSaveCallback().saveCallback(e);
     }
 }

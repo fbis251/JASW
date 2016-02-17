@@ -20,16 +20,14 @@ public class ImageLinkValidator implements LinkValidator {
         }
 
         // TODO: Temporarily disallow imgur album links
-        String[] domainBlacklist = {
-                "http://imgur.com/a/",
-                "https://imgur.com/a/",
-                "http://imgur.com/gallery/",
-                "https://imgur.com/gallery/",
+        String[] domainBlacklist =
+                {"http://imgur.com/a/", "https://imgur.com/a/", "http://imgur.com/gallery/", "https://imgur.com/gallery/",};
+
+        String[] extensionBlacklist = {
+//                ".gif", ".gifv",
         };
 
-        String[] extensionBlacklist = {".gif", ".gifv",};
-
-        String[] extensionWhitelist = {".jpg", ".jpeg", ".png", ".bmp",};
+        String[] extensionWhitelist = {".jpg", ".jpeg", ".png", ".bmp", ".gif"};
 
         // TODO: Perform better filtering here
         String linkUrl = link.getUrl();

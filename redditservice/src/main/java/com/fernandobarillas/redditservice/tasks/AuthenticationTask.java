@@ -1,5 +1,8 @@
 package com.fernandobarillas.redditservice.tasks;
 
+import android.os.AsyncTask;
+import android.util.Log;
+
 import com.fernandobarillas.redditservice.exceptions.NullRedditClientException;
 import com.fernandobarillas.redditservice.requests.AuthenticationRequest;
 
@@ -7,9 +10,6 @@ import net.dean.jraw.RedditClient;
 import net.dean.jraw.http.oauth.Credentials;
 import net.dean.jraw.http.oauth.OAuthData;
 import net.dean.jraw.http.oauth.OAuthHelper;
-
-import android.os.AsyncTask;
-import android.util.Log;
 
 import java.util.UUID;
 
@@ -46,6 +46,8 @@ public class AuthenticationTask extends AsyncTask<AuthenticationRequest, Void, E
                 // A user refresh token is stored
                 Log.i(LOG_TAG, "doInBackground: Using refresh token to authenticate");
                 credentials = Credentials.installedApp(redditClientId, redditRedirectUrl);
+                // TODO: This should match the wiki: https://github.com/thatJavaNerd/JRAW/wiki/OAuth2
+//                oAuthHelper.refreshToken(credentials);
                 oAuthHelper.setRefreshToken(refreshToken);
                 oAuthData = oAuthHelper.refreshToken(credentials);
             } else {
@@ -71,12 +73,12 @@ public class AuthenticationTask extends AsyncTask<AuthenticationRequest, Void, E
         Log.d(LOG_TAG, "onPostExecute() called with: " + "e = [" + e + "]");
         super.onPostExecute(e);
 
-        // Make sure a callback has been set
+        // Make sure a onComplete has been set
         if (mAuthenticationRequest.getAuthenticationCallback() == null) {
             return;
         }
 
-        // Now that we know the callback isn't null, execute it
+        // Now that we know the onComplete isn't null, execute it
         mAuthenticationRequest.getAuthenticationCallback().authenticationCallback(e);
     }
 }

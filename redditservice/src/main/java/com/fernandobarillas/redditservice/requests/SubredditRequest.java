@@ -17,7 +17,7 @@ public class SubredditRequest {
     private final TimePeriod mTimePeriod;
     private final int mLinkLimit;
     private final LinkValidator mLinkValidator;
-    // Only the callback should be dynamically changed since it's the only field nto passed in to
+    // Only the onComplete should be dynamically changed since it's the only field nto passed in to
     // the JRAW Paginator which will avoid getting an exception when the Paginator state changes
     private RedditLinksCallback mRedditLinksCallback;
 

@@ -3,6 +3,7 @@ package com.fernandobarillas.redditservice.models;
 import net.dean.jraw.models.PublicContribution;
 import net.dean.jraw.models.Submission;
 import net.dean.jraw.models.Thing;
+import net.dean.jraw.models.VoteDirection;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,7 +19,13 @@ public class Link extends PublicContribution {
     private String mSubredditName;
     private String mTitle;
     private String mUrl;
+    private VoteDirection mVoteDirection;
     private ArrayList<String> mAlbumUrls;
+
+    public Link(String url) {
+        super(null);
+        mUrl = url;
+    }
 
     public Link(Submission submission) {
         super(submission.getDataNode());
@@ -29,6 +36,7 @@ public class Link extends PublicContribution {
         mSubredditName = submission.getSubredditName();
         mTitle = submission.getTitle();
         mUrl = submission.getUrl();
+        mVoteDirection = submission.getVote();
         mAlbumUrls = new ArrayList<>();
     }
 
@@ -83,5 +91,25 @@ public class Link extends PublicContribution {
 
     public Boolean isSaved() {
         return mIsSaved;
+    }
+
+    public void setSaved(Boolean isSaved) {
+        mIsSaved = isSaved;
+    }
+
+    public void setVoteDirection(VoteDirection voteDirection) {
+        mVoteDirection = voteDirection;
+    }
+
+    public VoteDirection getVoteDirection() {
+        return mVoteDirection;
+    }
+
+    public boolean isUpvoted() {
+        return getVoteDirection() == VoteDirection.UPVOTE;
+    }
+
+    public boolean isDownvoted() {
+        return getVoteDirection() == VoteDirection.DOWNVOTE;
     }
 }

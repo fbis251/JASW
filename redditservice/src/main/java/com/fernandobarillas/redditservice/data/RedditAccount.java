@@ -4,7 +4,6 @@ import android.util.Log;
 
 import com.fernandobarillas.redditservice.callbacks.RedditSaveCallback;
 import com.fernandobarillas.redditservice.callbacks.RedditVoteCallback;
-import com.fernandobarillas.redditservice.exceptions.SameVoteDirectionException;
 import com.fernandobarillas.redditservice.models.Link;
 import com.fernandobarillas.redditservice.requests.SaveRequest;
 import com.fernandobarillas.redditservice.requests.VoteRequest;
@@ -48,9 +47,6 @@ public class RedditAccount {
 
     private void saveLink(final Link link, boolean doSave, final RedditSaveCallback saveCallback) {
         // TODO: Use a FIFO queue for any saving?
-        if (link.isSaved() == doSave) {
-            saveCallback.saveCallback(new SameVoteDirectionException());
-        }
         SaveRequest saveRequest = new SaveRequest(link, doSave, mAccountManager, saveCallback);
         SaveTask saveTask = new SaveTask();
         saveTask.execute(saveRequest);
@@ -68,12 +64,8 @@ public class RedditAccount {
         voteLink(link, VoteDirection.UPVOTE, voteCallback);
     }
 
-    private void voteLink(Link link, VoteDirection voteDirection, RedditVoteCallback voteCallback) {
+    public void voteLink(Link link, VoteDirection voteDirection, RedditVoteCallback voteCallback) {
         // TODO: Use a FIFO queue for any voting
-        if (link.getVote() == voteDirection && voteCallback != null) {
-            voteCallback.voteCallback(new SameVoteDirectionException());
-            return;
-        }
         VoteRequest voteRequest =
                 new VoteRequest(link, voteDirection, mAccountManager, voteCallback);
         VoteTask voteTask = new VoteTask();
