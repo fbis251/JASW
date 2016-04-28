@@ -142,6 +142,9 @@ public class RedditLinks {
         // Use the passed in subredditRequest to pass into our download task and paginators
         mSubredditRequest = subredditRequest;
 
+        // Reset the last visible link
+        mLastViewedLink = 0;
+
         // Cancel the current download task since we will be downloading new links
         if (mLinkDownloadTask != null) {
             Log.i(LOG_TAG, "Cancelling pending link download");
