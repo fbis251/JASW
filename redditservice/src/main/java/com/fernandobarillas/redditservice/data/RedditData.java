@@ -31,23 +31,27 @@ import rx.Observable;
  * Created by fb on 12/14/15.
  */
 public class RedditData {
-    public static final int DOWNLOAD_RETRIES = 3; // Download attempts before giving up
-    private static final String LOG_TAG = "RedditData";
-    private static RedditData sInstance;
-    private RedditLinks mRedditLinks;
-    private RedditAccount mRedditAccount;
-    private RedditClient mRedditClient;
+    public static final  int    DOWNLOAD_RETRIES = 3; // Download attempts before giving up
+    private static final String LOG_TAG          = "RedditData";
+    private static RedditData    sInstance;
+    private        RedditLinks   mRedditLinks;
+    private        RedditAccount mRedditAccount;
+    private        RedditClient  mRedditClient;
+    private        String        mAuthenticationJson;
+    private        long          mExpirationTime;
 
     private UserAgent mUserAgent;
-    private String mRefreshToken;
-    private String mRedditClientId;
-    private String mRedditRedirectUrl;
-    private boolean mNeedsAuthentication;
+    private String    mRefreshToken;
+    private String    mRedditClientId;
+    private String    mRedditRedirectUrl;
+    private boolean   mNeedsAuthentication;
 
     private RedditData(UserAgent userAgent,
                        String refreshToken,
                        String redditClientId,
-                       String redditRedirectUrl) {
+                       String redditRedirectUrl,
+                       String authenticationJson,
+                       long expirationTime) {
         Log.d(LOG_TAG, "RedditData()");
 
         if (TextUtils.isEmpty(redditClientId)) {
@@ -59,35 +63,34 @@ public class RedditData {
         mRefreshToken = refreshToken;
         mRedditClientId = redditClientId;
         mRedditRedirectUrl = redditRedirectUrl;
+        mAuthenticationJson = authenticationJson;
+        mExpirationTime = expirationTime;
 
         mRedditClient = new RedditClient(mUserAgent);
         // TODO: Handle setting logging mode when app isn't debuggable
 //        mRedditClient.setLoggingMode(LoggingMode.ALWAYS);
         mRedditClient.setLoggingMode(LoggingMode.ON_FAIL);
-//        mRedditClient.setRetryLimit(DOWNLOAD_RETRIES);
+        mRedditClient.setRetryLimit(DOWNLOAD_RETRIES);
 
-//        mRedditClient.hasActiveUserContext() // TODO: Check if user or app-only authenticated
-//
-        verifyAuthentication(null);
         mRedditLinks = new RedditLinks(mRedditClient);
         mRedditAccount = new RedditAccount(mRedditClient);
-//        verifyAuthentication(new RedditAuthenticationCallback() {
-//            @Override
-//            public void authenticationCallback(Exception e) {
-//                mRedditLinks = RedditLinks.getInstance(mRedditClient);
-//                mRedditAccount = new RedditAccount(mRedditClient);
-//            }
-//        });
     }
 
     public static RedditData getInstance(UserAgent userAgent,
                                          String refreshToken,
                                          String redditClientId,
-                                         String redditRedirectUrl) {
+                                         String redditRedirectUrl,
+                                         String authenticationJson,
+                                         long expirationTime) {
         Log.v(LOG_TAG, "getInstance() called with: " + "userAgent = [" + userAgent + "]");
 
         if (sInstance == null) {
-            sInstance = new RedditData(userAgent, refreshToken, redditClientId, redditRedirectUrl);
+            sInstance = new RedditData(userAgent,
+                                       refreshToken,
+                                       redditClientId,
+                                       redditRedirectUrl,
+                                       authenticationJson,
+                                       expirationTime);
         }
 
         return sInstance;
@@ -96,18 +99,24 @@ public class RedditData {
     public static RedditData newInstance(UserAgent userAgent,
                                          String refreshToken,
                                          String redditClientId,
-                                         String redditRedirectUrl) {
+                                         String redditRedirectUrl,
+                                         String authenticationJson,
+                                         long expirationTime) {
         Log.v(LOG_TAG, "newInstance() called with: " + "userAgent = [" + userAgent + "]");
         sInstance = null;
-        return getInstance(userAgent, refreshToken, redditClientId, redditRedirectUrl);
+        return getInstance(userAgent,
+                           refreshToken,
+                           redditClientId,
+                           redditRedirectUrl,
+                           authenticationJson,
+                           expirationTime);
     }
 
     public void downvoteLink(final Link link, final RedditVoteCallback voteCallback) {
-        Log.d(LOG_TAG,
-              "downvoteLink() called with: " + "link = [" + link + "], voteCallback = [" + voteCallback + "]");
+        Log.d(LOG_TAG, "downvoteLink() called with: " + "link = [" + link + "], voteCallback = [" + voteCallback + "]");
         verifyAuthentication(new RedditAuthenticationCallback() {
             @Override
-            public void authenticationCallback(Exception e) {
+            public void authenticationCallback(String authenticationJson, long expirationTime, Exception e) {
                 if (e == null) {
                     mRedditAccount.downvoteLink(link, voteCallback);
                 } else if (voteCallback != null) {
@@ -143,7 +152,7 @@ public class RedditData {
         Log.v(LOG_TAG, "getMoreLinks()");
         verifyAuthentication(new RedditAuthenticationCallback() {
             @Override
-            public void authenticationCallback(Exception e) {
+            public void authenticationCallback(String authenticationJson, long expirationTime, Exception e) {
                 if (e == null) {
                     mRedditLinks.getMoreLinks(linksCallback);
                 } else if (linksCallback != null) {
@@ -156,21 +165,19 @@ public class RedditData {
     }
 
     public void getNewLinks(final SubredditRequest subredditRequest) {
-        Log.v(LOG_TAG,
-              "getNewLinks() called with: " + "subredditRequest = [" + subredditRequest + "]");
+        Log.v(LOG_TAG, "getNewLinks() called with: " + "subredditRequest = [" + subredditRequest + "]");
 
         verifyAuthentication(new RedditAuthenticationCallback() {
             @Override
-            public void authenticationCallback(Exception e) {
+            public void authenticationCallback(String authenticationJson, long expirationTime, Exception e) {
                 if (e != null) {
                     if (subredditRequest.getRedditLinksCallback() != null) {
                         subredditRequest.getRedditLinksCallback().linksCallback(e);
                     }
                     return;
                 }
-                int attempts = 0;
-                final RedditLinksCallback originalCallback =
-                        subredditRequest.getRedditLinksCallback();
+                int                       attempts         = 0;
+                final RedditLinksCallback originalCallback = subredditRequest.getRedditLinksCallback();
                 RedditLinksCallback newCallback = new RedditLinksCallback() {
                     @Override
                     public void linksCallback(Exception e) {
@@ -206,11 +213,10 @@ public class RedditData {
     }
 
     public void removeVote(final Link link, final RedditVoteCallback voteCallback) {
-        Log.d(LOG_TAG,
-              "removeVote() called with: " + "link = [" + link + "], voteCallback = [" + voteCallback + "]");
+        Log.d(LOG_TAG, "removeVote() called with: " + "link = [" + link + "], voteCallback = [" + voteCallback + "]");
         verifyAuthentication(new RedditAuthenticationCallback() {
             @Override
-            public void authenticationCallback(Exception e) {
+            public void authenticationCallback(String authenticationJson, long expirationTime, Exception e) {
                 if (e == null) {
                     mRedditAccount.removeVote(link, voteCallback);
                 } else if (voteCallback != null) {
@@ -223,23 +229,20 @@ public class RedditData {
     }
 
     public void saveLink(final Link link, final RedditSaveCallback saveCallback) {
-        Log.v(LOG_TAG,
-              "saveLink() called with: " + "link = [" + link + "], saveCallback = [" + saveCallback + "]");
+        Log.v(LOG_TAG, "saveLink() called with: " + "link = [" + link + "], saveCallback = [" + saveCallback + "]");
         mRedditAccount.saveLink(link, saveCallback);
     }
 
     public void unsaveLink(final Link link, final RedditSaveCallback saveCallback) {
-        Log.v(LOG_TAG,
-              "unsaveLink() called with: " + "link = [" + link + "], saveCallback = [" + saveCallback + "]");
+        Log.v(LOG_TAG, "unsaveLink() called with: " + "link = [" + link + "], saveCallback = [" + saveCallback + "]");
         mRedditAccount.unsaveLink(link, saveCallback);
     }
 
     public void upvoteLink(final Link link, final RedditVoteCallback voteCallback) {
-        Log.d(LOG_TAG,
-              "upvoteLink() called with: " + "link = [" + link + "], voteCallback = [" + voteCallback + "]");
+        Log.d(LOG_TAG, "upvoteLink() called with: " + "link = [" + link + "], voteCallback = [" + voteCallback + "]");
         verifyAuthentication(new RedditAuthenticationCallback() {
             @Override
-            public void authenticationCallback(Exception e) {
+            public void authenticationCallback(String authenticationJson, long expirationTime, Exception e) {
                 if (e == null) {
                     mRedditAccount.upvoteLink(link, voteCallback);
                 } else if (voteCallback != null) {
@@ -251,16 +254,13 @@ public class RedditData {
         });
     }
 
-    public void voteLink(final Link link,
-                         final VoteDirection voteDirection,
-                         final RedditVoteCallback voteCallback) {
-        Log.v(LOG_TAG,
-              "voteLink() called with: " + "link = ["+ link +
-                      "], voteDirection = [" +voteDirection +
-                      "], voteCallback = [" + voteCallback + "]");
+    public void voteLink(final Link link, final VoteDirection voteDirection, final RedditVoteCallback voteCallback) {
+        Log.v(LOG_TAG, "voteLink() called with: " + "link = [" + link +
+                "], voteDirection = [" + voteDirection +
+                "], voteCallback = [" + voteCallback + "]");
         verifyAuthentication(new RedditAuthenticationCallback() {
             @Override
-            public void authenticationCallback(Exception e) {
+            public void authenticationCallback(String authenticationJson, long expirationTime, Exception e) {
                 if (e != null) {
                     if (voteCallback != null) voteCallback.voteCallback(e);
                     Log.e(LOG_TAG, "authenticationCallback: ", e);
@@ -273,22 +273,23 @@ public class RedditData {
     }
 
     // TODO: This method needs to block before the requests are let through
-    private synchronized void verifyAuthentication(RedditAuthenticationCallback authenticationCallback) {
-        Log.v(LOG_TAG,
-              "verifyAuthentication() is authenticated: " + mRedditClient.isAuthenticated());
+    public synchronized void verifyAuthentication(RedditAuthenticationCallback authenticationCallback) {
+        Log.v(LOG_TAG, "verifyAuthentication() is authenticated: " + mRedditClient.isAuthenticated());
         if (mNeedsAuthentication || !mRedditClient.isAuthenticated()) {
             Log.v(LOG_TAG, "verifyAuthentication: Client needs authentication, running auth task");
             AuthenticationRequest authenticationRequest = new AuthenticationRequest(mRedditClient,
                                                                                     mRefreshToken,
                                                                                     mRedditClientId,
                                                                                     mRedditRedirectUrl,
+                                                                                    mAuthenticationJson,
+                                                                                    mExpirationTime,
                                                                                     authenticationCallback);
             AuthenticationTask authenticationTask = new AuthenticationTask();
             authenticationTask.execute(authenticationRequest);
             mNeedsAuthentication = false;
         } else {
             // RedditClient is properly authenticated, run onComplete with no Exception
-            authenticationCallback.authenticationCallback(null);
+            authenticationCallback.authenticationCallback(mAuthenticationJson, mExpirationTime, null);
         }
     }
 
@@ -302,8 +303,7 @@ public class RedditData {
      */
     public HashSet<String> getUserSubreddits() throws NetworkException, IllegalStateException {
         Log.v(LOG_TAG, "getObservable() called");
-        UserSubredditsPaginator paginator =
-                new UserSubredditsPaginator(mRedditClient, "subscriber");
+        UserSubredditsPaginator paginator = new UserSubredditsPaginator(mRedditClient, "subscriber");
 
         // A Set doesn't allow any duplicate insertions
         HashSet<String> subredditSet = new HashSet<>();

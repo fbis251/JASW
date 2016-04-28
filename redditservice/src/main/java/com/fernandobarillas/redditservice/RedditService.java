@@ -6,8 +6,10 @@ import android.content.Intent;
 import android.os.Binder;
 import android.os.IBinder;
 import android.support.annotation.NonNull;
+import android.text.TextUtils;
 import android.util.Log;
 
+import com.fernandobarillas.redditservice.callbacks.RedditAuthenticationCallback;
 import com.fernandobarillas.redditservice.callbacks.RedditLinksCallback;
 import com.fernandobarillas.redditservice.callbacks.RedditSaveCallback;
 import com.fernandobarillas.redditservice.callbacks.RedditSubscriptionsCallback;
@@ -53,7 +55,9 @@ public class RedditService extends Service {
         mRedditData = RedditData.getInstance(UserAgent.of(mServicePreferences.getUserAgentString()),
                                              mServicePreferences.getRefreshToken(),
                                              mServicePreferences.getRedditClientId(),
-                                             mServicePreferences.getRedditRedirectUrl());
+                                             mServicePreferences.getRedditRedirectUrl(),
+                                             mServicePreferences.getAuthenticationJson(),
+                                             mServicePreferences.getExpirationTime());
     }
 
     @Override
@@ -96,8 +100,7 @@ public class RedditService extends Service {
     }
 
     public void downvoteLink(Link link, RedditVoteCallback voteCallback) {
-        Log.v(LOG_TAG,
-              "downvoteLink() called with: " + "link = [" + link + "], voteCallback = [" + voteCallback + "]");
+        Log.v(LOG_TAG, "downvoteLink() called with: " + "link = [" + link + "], voteCallback = [" + voteCallback + "]");
         mRedditData.downvoteLink(link, voteCallback);
     }
 
@@ -127,38 +130,31 @@ public class RedditService extends Service {
     }
 
     public void getNewLinks(final SubredditRequest subredditRequest) {
-        Log.v(LOG_TAG,
-              "getNewLinks() called with: " + "subredditRequest = [" + subredditRequest + "]");
+        Log.v(LOG_TAG, "getNewLinks() called with: " + "subredditRequest = [" + subredditRequest + "]");
         mRedditData.getNewLinks(subredditRequest);
     }
 
     public void removeVote(Link link, RedditVoteCallback voteCallback) {
-        Log.d(LOG_TAG,
-              "removeVote() called with: " + "link = [" + link + "], voteCallback = [" + voteCallback + "]");
+        Log.d(LOG_TAG, "removeVote() called with: " + "link = [" + link + "], voteCallback = [" + voteCallback + "]");
         mRedditData.removeVote(link, voteCallback);
     }
 
     public void saveLink(final Link link, final RedditSaveCallback saveCallback) {
-        Log.v(LOG_TAG,
-              "saveLink() called with: " + "link = [" + link + "], saveCallback = [" + saveCallback + "]");
+        Log.v(LOG_TAG, "saveLink() called with: " + "link = [" + link + "], saveCallback = [" + saveCallback + "]");
         mRedditData.saveLink(link, saveCallback);
     }
 
     public void unsaveLink(final Link link, final RedditSaveCallback saveCallback) {
-        Log.v(LOG_TAG,
-              "unsaveLink() called with: " + "link = [" + link + "], saveCallback = [" + saveCallback + "]");
+        Log.v(LOG_TAG, "unsaveLink() called with: " + "link = [" + link + "], saveCallback = [" + saveCallback + "]");
         mRedditData.unsaveLink(link, saveCallback);
     }
 
     public void upvoteLink(Link link, RedditVoteCallback voteCallback) {
-        Log.d(LOG_TAG,
-              "upvoteLink() called with: " + "link = [" + link + "], voteCallback = [" + voteCallback + "]");
+        Log.d(LOG_TAG, "upvoteLink() called with: " + "link = [" + link + "], voteCallback = [" + voteCallback + "]");
         mRedditData.upvoteLink(link, voteCallback);
     }
 
-    public void voteLink(final Link link,
-                         final VoteDirection voteDirection,
-                         final RedditVoteCallback voteCallback) {
+    public void voteLink(final Link link, final VoteDirection voteDirection, final RedditVoteCallback voteCallback) {
         mRedditData.voteLink(link, voteDirection, voteCallback);
     }
 
@@ -170,8 +166,7 @@ public class RedditService extends Service {
                 .subscribe(new Observer<List<Subreddit>>() {
                     @Override
                     public void onCompleted() {
-                        Log.v(LOG_TAG,
-                              "getUserSubreddits onCompleted: Set size: " + subredditsSet.size());
+                        Log.v(LOG_TAG, "getUserSubreddits onCompleted: Set size: " + subredditsSet.size());
                         if (subscriptionsCallback != null) {
                             subscriptionsCallback.onComplete(subredditsSet);
                         }
@@ -188,9 +183,8 @@ public class RedditService extends Service {
 
                     @Override
                     public void onNext(List<Subreddit> subreddits) {
-                        Log.v(LOG_TAG,
-                              "getUserSubreddits onNext() called with: " + "subreddits = [" +
-                                      subreddits + "]");
+                        Log.v(LOG_TAG, "getUserSubreddits onNext() called with: " + "subreddits = [" +
+                                subreddits + "]");
                         subredditsSet.addAll(subreddits);
                     }
                 });
@@ -216,8 +210,27 @@ public class RedditService extends Service {
         mRedditData = RedditData.getInstance(UserAgent.of(mServicePreferences.getUserAgentString()),
                                              mServicePreferences.getRefreshToken(),
                                              mServicePreferences.getRedditClientId(),
-                                             mServicePreferences.getRedditRedirectUrl());
+                                             mServicePreferences.getRedditRedirectUrl(),
+                                             mServicePreferences.getAuthenticationJson(),
+                                             mServicePreferences.getExpirationTime());
 
+
+        mRedditData.verifyAuthentication(new RedditAuthenticationCallback() {
+            @Override
+            public void authenticationCallback(String authenticationJson, long expirationTime, Exception e) {
+                if (e != null) {
+                    Log.e(LOG_TAG, "authenticationCallback: ", e);
+                    return;
+                }
+
+                Log.v(LOG_TAG, "authenticationCallback: Caching authentication data");
+                // Cache the authentication data
+                mServicePreferences.setExpirationTime(expirationTime);
+                if (!TextUtils.isEmpty(authenticationJson)) {
+                    mServicePreferences.setAuthenticationJson(authenticationJson);
+                }
+            }
+        });
         // TODO: Force new instance of reddit data for new user logins/user switching
     }
 

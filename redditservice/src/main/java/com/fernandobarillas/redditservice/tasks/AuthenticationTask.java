@@ -1,6 +1,7 @@
 package com.fernandobarillas.redditservice.tasks;
 
 import android.os.AsyncTask;
+import android.text.TextUtils;
 import android.util.Log;
 
 import com.fernandobarillas.redditservice.exceptions.NullRedditClientException;
@@ -11,6 +12,7 @@ import net.dean.jraw.http.oauth.Credentials;
 import net.dean.jraw.http.oauth.OAuthData;
 import net.dean.jraw.http.oauth.OAuthHelper;
 
+import java.util.Calendar;
 import java.util.UUID;
 
 /**
@@ -19,6 +21,8 @@ import java.util.UUID;
 public class AuthenticationTask extends AsyncTask<AuthenticationRequest, Void, Exception> {
     private static final String LOG_TAG = "AuthenticationTask";
     private AuthenticationRequest mAuthenticationRequest;
+    private String                mAuthenticationJson;
+    private long                  mExpirationTime;
 
     @Override
     protected Exception doInBackground(AuthenticationRequest... authenticationRequests) {
@@ -35,21 +39,31 @@ public class AuthenticationTask extends AsyncTask<AuthenticationRequest, Void, E
             return new NullRedditClientException();
         }
 
-        String refreshToken = mAuthenticationRequest.getRefreshToken();
-        String redditClientId = mAuthenticationRequest.getRedditClientId();
-        String redditRedirectUrl = mAuthenticationRequest.getRedditRedirectUrl();
+        String      refreshToken       = mAuthenticationRequest.getRefreshToken();
+        String      redditClientId     = mAuthenticationRequest.getRedditClientId();
+        String      redditRedirectUrl  = mAuthenticationRequest.getRedditRedirectUrl();
+        String      authenticationJson = mAuthenticationRequest.getAuthenticationJson();
+        long        expirationTime     = mAuthenticationRequest.getExpirationTime();
         Credentials credentials;
-        OAuthHelper oAuthHelper = redditClient.getOAuthHelper();
-        OAuthData oAuthData;
+        OAuthHelper oAuthHelper        = redditClient.getOAuthHelper();
+        OAuthData   oAuthData;
         try {
             if (!refreshToken.isEmpty()) {
                 // A user refresh token is stored
                 Log.i(LOG_TAG, "doInBackground: Using refresh token to authenticate");
                 credentials = Credentials.installedApp(redditClientId, redditRedirectUrl);
-                // TODO: This should match the wiki: https://github.com/thatJavaNerd/JRAW/wiki/OAuth2
-//                oAuthHelper.refreshToken(credentials);
                 oAuthHelper.setRefreshToken(refreshToken);
-                oAuthData = oAuthHelper.refreshToken(credentials);
+                // @formatter:off
+                if (expirationTime != AuthenticationRequest.INVALID_EXPIRATION_TIME &&
+                        expirationTime > Calendar.getInstance().getTimeInMillis()
+                        && !TextUtils.isEmpty(authenticationJson)) {
+                // @formatter: on
+                    Log.v(LOG_TAG, "doInBackground: Using cached authentication data");
+                    oAuthData = oAuthHelper.refreshToken(credentials, authenticationJson);
+                } else {
+                    Log.v(LOG_TAG, "doInBackground: Requesting new authentication data");
+                    oAuthData = oAuthHelper.refreshToken(credentials);
+                }
             } else {
                 // We can't perform a user login with no refresh token, this means that the
                 // user hasn't tried to log in yet.
@@ -58,6 +72,10 @@ public class AuthenticationTask extends AsyncTask<AuthenticationRequest, Void, E
                 credentials = Credentials.userlessApp(redditClientId, deviceUuid);
                 oAuthData = redditClient.getOAuthHelper().easyAuth(credentials);
             }
+
+            // Pass back the authentication data to the caller in order to cache it for later use
+            mExpirationTime = oAuthData.getExpirationDate().getTime();
+            mAuthenticationJson = oAuthData.getDataNode().toString();
 
             redditClient.authenticate(oAuthData);
         } catch (Exception e) {
@@ -79,6 +97,7 @@ public class AuthenticationTask extends AsyncTask<AuthenticationRequest, Void, E
         }
 
         // Now that we know the onComplete isn't null, execute it
-        mAuthenticationRequest.getAuthenticationCallback().authenticationCallback(e);
+        mAuthenticationRequest.getAuthenticationCallback()
+                .authenticationCallback(mAuthenticationJson, mExpirationTime, e);
     }
 }
