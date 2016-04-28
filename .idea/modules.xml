@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/ServiceTest.iml" filepath="$PROJECT_DIR$/ServiceTest.iml" />
+      <module fileurl="file://$PROJECT_DIR$/JASW.iml" filepath="$PROJECT_DIR$/JASW.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
       <module fileurl="file://$PROJECT_DIR$/redditservice/redditservice.iml" filepath="$PROJECT_DIR$/redditservice/redditservice.iml" />
     </modules>
