@@ -3,6 +3,7 @@ package com.fernandobarillas.redditservice.models;
 import net.dean.jraw.models.PublicContribution;
 import net.dean.jraw.models.Submission;
 import net.dean.jraw.models.Thing;
+import net.dean.jraw.models.Thumbnails;
 import net.dean.jraw.models.VoteDirection;
 
 import java.util.ArrayList;
@@ -12,14 +13,17 @@ import java.util.List;
  * Created by fb on 12/15/15.
  */
 public class Link extends PublicContribution {
-    private String mAuthor;
-    private Boolean mIsNsfw;
-    private Boolean mIsSaved;
-    private String mPermaLink;
-    private String mSubredditName;
-    private String mTitle;
-    private String mUrl;
-    private VoteDirection mVoteDirection;
+    private Submission        mSubmission;
+    private String            mAuthor;
+    private Boolean           mIsNsfw;
+    private Boolean           mIsSaved;
+    private String            mPermaLink;
+    private String            mSubredditName;
+    private String            mTitle;
+    private String            mThumbnail;
+    private Thumbnails        mThumbnails;
+    private String            mUrl;
+    private VoteDirection     mVoteDirection;
     private ArrayList<String> mAlbumUrls;
 
     public Link(String url) {
@@ -29,12 +33,15 @@ public class Link extends PublicContribution {
 
     public Link(Submission submission) {
         super(submission.getDataNode());
+        mSubmission = submission;
         mAuthor = submission.getAuthor();
         mIsNsfw = submission.isNsfw();
         mIsSaved = submission.isSaved();
         mPermaLink = submission.getPermalink();
         mSubredditName = submission.getSubredditName();
         mTitle = submission.getTitle();
+        mThumbnail = submission.getThumbnail();
+        mThumbnails = submission.getThumbnails();
         mUrl = submission.getUrl();
         mVoteDirection = submission.getVote();
         mAlbumUrls = new ArrayList<>();
@@ -69,6 +76,10 @@ public class Link extends PublicContribution {
         return mAuthor;
     }
 
+    public String getDomain() {
+        return mSubmission.getDomain();
+    }
+
     public String getPermalink() {
         return mPermaLink;
     }
@@ -81,6 +92,14 @@ public class Link extends PublicContribution {
         return mTitle;
     }
 
+    public String getThumbnail() {
+        return mThumbnail;
+    }
+
+    public Thumbnails getThumbnails() {
+        return mThumbnails;
+    }
+
     public String getUrl() {
         return mUrl;
     }
@@ -91,6 +110,10 @@ public class Link extends PublicContribution {
 
     public Boolean isSaved() {
         return mIsSaved;
+    }
+
+    public void setScore(int score) {
+
     }
 
     public void setSaved(Boolean isSaved) {
