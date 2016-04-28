@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Binder;
 import android.os.IBinder;
+import android.support.annotation.NonNull;
 import android.util.Log;
 
 import com.fernandobarillas.redditservice.callbacks.RedditLinksCallback;
@@ -78,6 +79,22 @@ public class RedditService extends Service {
         return Service.START_NOT_STICKY;
     }
 
+    public static Intent getRedditServiceIntent(@NonNull Context context,
+                                                String refreshToken,
+                                                @NonNull String clientId,
+                                                @NonNull String redirectUrl,
+                                                @NonNull UserAgent appUserAgent) {
+        Log.v(LOG_TAG, "getRedditServiceIntent()");
+
+        // Bind the reddit service to this Activity
+        Intent redditServiceIntent = new Intent(context, RedditService.class);
+        redditServiceIntent.putExtra(RedditService.REFRESH_TOKEN_KEY, refreshToken);
+        redditServiceIntent.putExtra(RedditService.REDDIT_CLIENT_ID_KEY, clientId);
+        redditServiceIntent.putExtra(RedditService.REDDIT_REDIRECT_URL_KEY, redirectUrl);
+        redditServiceIntent.putExtra(RedditService.USER_AGENT_KEY, appUserAgent.toString());
+        return redditServiceIntent;
+    }
+
     public void downvoteLink(Link link, RedditVoteCallback voteCallback) {
         Log.v(LOG_TAG,
               "downvoteLink() called with: " + "link = [" + link + "], voteCallback = [" + voteCallback + "]");
@@ -147,7 +164,7 @@ public class RedditService extends Service {
 
     public Subscription getUserSubreddits(final RedditSubscriptionsCallback subscriptionsCallback) {
         Observable<List<Subreddit>> subredditsObservable = mRedditData.getUserSubredditsObservable();
-        final HashSet<Subreddit> subredditsSet = new HashSet<>();
+        final HashSet<Subreddit>    subredditsSet        = new HashSet<>();
         return subredditsObservable.subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(new Observer<List<Subreddit>>() {
@@ -185,7 +202,7 @@ public class RedditService extends Service {
         Context serviceContext = this;
         mServicePreferences = new ServicePreferences(serviceContext);
 
-        String userAgentString   = intent.getExtras().getString(USER_AGENT_KEY, "");
+        String userAgentString   = intent.getExtras().getString(USER_AGENT_KEY, Constants.DEFAULT_USER_AGENT);
         String refreshToken      = intent.getExtras().getString(REFRESH_TOKEN_KEY);
         String redditClientId    = intent.getExtras().getString(REDDIT_CLIENT_ID_KEY);
         String redditRedirectUrl = intent.getExtras().getString(REDDIT_REDIRECT_URL_KEY);
