@@ -21,6 +21,7 @@ import java.util.UUID;
 public class AuthenticationTask extends AsyncTask<AuthenticationRequest, Void, Exception> {
     private static final String LOG_TAG = "AuthenticationTask";
     private AuthenticationRequest mAuthenticationRequest;
+    private String                mAuthenticatedUsername;
     private String                mAuthenticationJson;
     private long                  mExpirationTime;
 
@@ -73,11 +74,15 @@ public class AuthenticationTask extends AsyncTask<AuthenticationRequest, Void, E
                 oAuthData = redditClient.getOAuthHelper().easyAuth(credentials);
             }
 
+            redditClient.authenticate(oAuthData);
+
             // Pass back the authentication data to the caller in order to cache it for later use
             mExpirationTime = oAuthData.getExpirationDate().getTime();
             mAuthenticationJson = oAuthData.getDataNode().toString();
-
-            redditClient.authenticate(oAuthData);
+            if(redditClient.isAuthenticated()) {
+                // TODO: get this elsewhere so it doesn't create a new blocking HTTP request
+//                mAuthenticatedUsername = redditClient.getAuthenticatedUser();
+            }
         } catch (Exception e) {
             Log.e(LOG_TAG, "doInBackground: Unable to authenticate", e);
             return e;
@@ -98,6 +103,6 @@ public class AuthenticationTask extends AsyncTask<AuthenticationRequest, Void, E
 
         // Now that we know the onComplete isn't null, execute it
         mAuthenticationRequest.getAuthenticationCallback()
-                .authenticationCallback(mAuthenticationJson, mExpirationTime, e);
+                .authenticationCallback(mAuthenticatedUsername, mAuthenticationJson, mExpirationTime, e);
     }
 }

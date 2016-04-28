@@ -116,7 +116,10 @@ public class RedditData {
         Log.d(LOG_TAG, "downvoteLink() called with: " + "link = [" + link + "], voteCallback = [" + voteCallback + "]");
         verifyAuthentication(new RedditAuthenticationCallback() {
             @Override
-            public void authenticationCallback(String authenticationJson, long expirationTime, Exception e) {
+            public void authenticationCallback(String username,
+                                               String authenticationJson,
+                                               long expirationTime,
+                                               Exception e) {
                 if (e == null) {
                     mRedditAccount.downvoteLink(link, voteCallback);
                 } else if (voteCallback != null) {
@@ -152,7 +155,10 @@ public class RedditData {
         Log.v(LOG_TAG, "getMoreLinks()");
         verifyAuthentication(new RedditAuthenticationCallback() {
             @Override
-            public void authenticationCallback(String authenticationJson, long expirationTime, Exception e) {
+            public void authenticationCallback(String username,
+                                               String authenticationJson,
+                                               long expirationTime,
+                                               Exception e) {
                 if (e == null) {
                     mRedditLinks.getMoreLinks(linksCallback);
                 } else if (linksCallback != null) {
@@ -169,7 +175,10 @@ public class RedditData {
 
         verifyAuthentication(new RedditAuthenticationCallback() {
             @Override
-            public void authenticationCallback(String authenticationJson, long expirationTime, Exception e) {
+            public void authenticationCallback(String username,
+                                               String authenticationJson,
+                                               long expirationTime,
+                                               Exception e) {
                 if (e != null) {
                     if (subredditRequest.getRedditLinksCallback() != null) {
                         subredditRequest.getRedditLinksCallback().linksCallback(e);
@@ -216,7 +225,10 @@ public class RedditData {
         Log.d(LOG_TAG, "removeVote() called with: " + "link = [" + link + "], voteCallback = [" + voteCallback + "]");
         verifyAuthentication(new RedditAuthenticationCallback() {
             @Override
-            public void authenticationCallback(String authenticationJson, long expirationTime, Exception e) {
+            public void authenticationCallback(String username,
+                                               String authenticationJson,
+                                               long expirationTime,
+                                               Exception e) {
                 if (e == null) {
                     mRedditAccount.removeVote(link, voteCallback);
                 } else if (voteCallback != null) {
@@ -242,7 +254,10 @@ public class RedditData {
         Log.d(LOG_TAG, "upvoteLink() called with: " + "link = [" + link + "], voteCallback = [" + voteCallback + "]");
         verifyAuthentication(new RedditAuthenticationCallback() {
             @Override
-            public void authenticationCallback(String authenticationJson, long expirationTime, Exception e) {
+            public void authenticationCallback(String username,
+                                               String authenticationJson,
+                                               long expirationTime,
+                                               Exception e) {
                 if (e == null) {
                     mRedditAccount.upvoteLink(link, voteCallback);
                 } else if (voteCallback != null) {
@@ -260,7 +275,10 @@ public class RedditData {
                 "], voteCallback = [" + voteCallback + "]");
         verifyAuthentication(new RedditAuthenticationCallback() {
             @Override
-            public void authenticationCallback(String authenticationJson, long expirationTime, Exception e) {
+            public void authenticationCallback(String username,
+                                               String authenticationJson,
+                                               long expirationTime,
+                                               Exception e) {
                 if (e != null) {
                     if (voteCallback != null) voteCallback.voteCallback(e);
                     Log.e(LOG_TAG, "authenticationCallback: ", e);
@@ -289,7 +307,10 @@ public class RedditData {
             mNeedsAuthentication = false;
         } else {
             // RedditClient is properly authenticated, run onComplete with no Exception
-            authenticationCallback.authenticationCallback(mAuthenticationJson, mExpirationTime, null);
+            authenticationCallback.authenticationCallback(null,
+                                                          null,
+                                                          AuthenticationRequest.INVALID_EXPIRATION_TIME,
+                                                          null);
         }
     }
 

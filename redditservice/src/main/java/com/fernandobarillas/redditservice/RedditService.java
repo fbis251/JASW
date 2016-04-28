@@ -17,11 +17,15 @@ import com.fernandobarillas.redditservice.callbacks.RedditVoteCallback;
 import com.fernandobarillas.redditservice.data.RedditData;
 import com.fernandobarillas.redditservice.models.Link;
 import com.fernandobarillas.redditservice.preferences.ServicePreferences;
+import com.fernandobarillas.redditservice.requests.AuthenticationRequest;
 import com.fernandobarillas.redditservice.requests.SubredditRequest;
 
 import net.dean.jraw.http.UserAgent;
 import net.dean.jraw.models.Subreddit;
 import net.dean.jraw.models.VoteDirection;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashSet;
 import java.util.List;
@@ -193,6 +197,11 @@ public class RedditService extends Service {
     private void initializeService(Intent intent) {
         Log.v(LOG_TAG, "initializeService() called with: " + "intent = [" + intent + "]");
 
+        Log.e(LOG_TAG, "onCreate: Trying to log");
+        Logger logger = LoggerFactory.getLogger(RedditService.class);
+        logger.info("Hello World");
+        Log.e(LOG_TAG, "onCreate: Trying to log, done");
+
         Context serviceContext = this;
         mServicePreferences = new ServicePreferences(serviceContext);
 
@@ -217,15 +226,25 @@ public class RedditService extends Service {
 
         mRedditData.verifyAuthentication(new RedditAuthenticationCallback() {
             @Override
-            public void authenticationCallback(String authenticationJson, long expirationTime, Exception e) {
+            public void authenticationCallback(String username,
+                                               String authenticationJson,
+                                               long expirationTime,
+                                               Exception e) {
                 if (e != null) {
                     Log.e(LOG_TAG, "authenticationCallback: ", e);
                     return;
                 }
 
                 Log.v(LOG_TAG, "authenticationCallback: Caching authentication data");
+                if (!TextUtils.isEmpty(username)) {
+                    mServicePreferences.setAuthenticationJson(authenticationJson);
+                    Log.e(LOG_TAG, "authenticationCallback: Authenticated user: " + username);
+                    // TODO: Make shared prefs save auth data for individal usernames
+                }
                 // Cache the authentication data
-                mServicePreferences.setExpirationTime(expirationTime);
+                if (expirationTime != AuthenticationRequest.INVALID_EXPIRATION_TIME) {
+                    mServicePreferences.setExpirationTime(expirationTime);
+                }
                 if (!TextUtils.isEmpty(authenticationJson)) {
                     mServicePreferences.setAuthenticationJson(authenticationJson);
                 }
