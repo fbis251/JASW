@@ -54,11 +54,17 @@ public class AuthenticationTask extends AsyncTask<AuthenticationRequest, Void, E
                 Log.i(LOG_TAG, "doInBackground: Using refresh token to authenticate");
                 credentials = Credentials.installedApp(redditClientId, redditRedirectUrl);
                 oAuthHelper.setRefreshToken(refreshToken);
-                // @formatter:off
-                if (expirationTime != AuthenticationRequest.INVALID_EXPIRATION_TIME &&
-                        expirationTime > Calendar.getInstance().getTimeInMillis()
-                        && !TextUtils.isEmpty(authenticationJson)) {
-                // @formatter: on
+
+                long    currentTime = Calendar.getInstance().getTimeInMillis();
+                boolean expired     = expirationTime < currentTime;
+                long    timeLeft    = expirationTime - currentTime;
+
+                Log.v(LOG_TAG, "doInBackground: Cached time:  " + expirationTime);
+                Log.v(LOG_TAG, "doInBackground: Current time: " + currentTime);
+                Log.v(LOG_TAG, "doInBackground: Time left: " + timeLeft);
+                Log.v(LOG_TAG, "doInBackground: Expired? : " + expired);
+
+                if (!expired && !TextUtils.isEmpty(authenticationJson)) {
                     Log.v(LOG_TAG, "doInBackground: Using cached authentication data");
                     oAuthData = oAuthHelper.refreshToken(credentials, authenticationJson);
                 } else {
@@ -79,7 +85,7 @@ public class AuthenticationTask extends AsyncTask<AuthenticationRequest, Void, E
             // Pass back the authentication data to the caller in order to cache it for later use
             mExpirationTime = oAuthData.getExpirationDate().getTime();
             mAuthenticationJson = oAuthData.getDataNode().toString();
-            if(redditClient.isAuthenticated()) {
+            if (redditClient.isAuthenticated()) {
                 // TODO: get this elsewhere so it doesn't create a new blocking HTTP request
 //                mAuthenticatedUsername = redditClient.getAuthenticatedUser();
             }
