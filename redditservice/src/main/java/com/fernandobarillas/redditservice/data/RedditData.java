@@ -8,10 +8,10 @@ import com.fernandobarillas.redditservice.callbacks.RedditLinksCallback;
 import com.fernandobarillas.redditservice.callbacks.RedditSaveCallback;
 import com.fernandobarillas.redditservice.callbacks.RedditVoteCallback;
 import com.fernandobarillas.redditservice.models.Link;
+import com.fernandobarillas.redditservice.observables.AuthObservable;
 import com.fernandobarillas.redditservice.observables.UserSubredditsObservable;
 import com.fernandobarillas.redditservice.requests.AuthenticationRequest;
 import com.fernandobarillas.redditservice.requests.SubredditRequest;
-import com.fernandobarillas.redditservice.tasks.AuthenticationTask;
 
 import net.dean.jraw.RedditClient;
 import net.dean.jraw.http.LoggingMode;
@@ -302,8 +302,8 @@ public class RedditData {
                                                                                     mAuthenticationJson,
                                                                                     mExpirationTime,
                                                                                     authenticationCallback);
-            AuthenticationTask authenticationTask = new AuthenticationTask();
-            authenticationTask.execute(authenticationRequest);
+            AuthObservable authenticationObservable = new AuthObservable();
+            authenticationObservable.execute(authenticationRequest);
             mNeedsAuthentication = false;
         } else {
             // RedditClient is properly authenticated, run onComplete with no Exception
