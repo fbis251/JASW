@@ -1,57 +1,49 @@
 package com.fernandobarillas.redditservice.tasks;
 
-import android.os.AsyncTask;
-import android.util.Log;
-
 import com.fernandobarillas.redditservice.exceptions.NullAccountManagerException;
 import com.fernandobarillas.redditservice.requests.VoteRequest;
+import com.orhanobut.logger.Logger;
 
+import net.dean.jraw.ApiException;
 import net.dean.jraw.managers.AccountManager;
+
+import rx.Observable;
+import rx.Subscriber;
 
 /**
  * Created by fb on 12/15/15.
  */
-public class VoteTask extends AsyncTask<VoteRequest, Void, Exception> {
-    private static final String LOG_TAG = "VoteTask";
-    private VoteRequest mVoteRequest;
+public class VoteTask {
+    private AccountManager mAccountManager;
+    private VoteRequest    mVoteRequest;
 
-    @Override
-    protected Exception doInBackground(VoteRequest... voteRequests) {
-        Log.d(LOG_TAG, "doInBackground()");
-        if (voteRequests.length != 1) {
-            // TODO: Create custom Exception
-            return new Exception("More than 1 vote request passed in");
-        }
-
-        mVoteRequest = voteRequests[0];
-        AccountManager accountManager = mVoteRequest.getAccountManager();
-
-        if (accountManager == null) {
-            return new NullAccountManagerException();
-        }
-
-        try {
-            accountManager.vote(mVoteRequest.getLink(), mVoteRequest.getVoteDirection());
-            return null;
-        } catch (Exception e) {
-            Log.e(LOG_TAG, "doInBackground: failed", e);
-            // Pass back the exception to the caller to have the option of displaying the
-            // message in the UI
-            return e;
-        }
+    public VoteTask(AccountManager accountManager) {
+        mAccountManager = accountManager;
     }
 
-    @Override
-    protected void onPostExecute(Exception e) {
-        Log.d(LOG_TAG, "onPostExecute() called with: " + "e = [" + e + "]");
-        super.onPostExecute(e);
+    public Observable<Boolean> vote(VoteRequest voteRequest) {
+        mVoteRequest = voteRequest;
+        return Observable.create(new Observable.OnSubscribe<Boolean>() {
+            @Override
+            public void call(Subscriber<? super Boolean> subscriber) {
+                if (subscriber.isUnsubscribed()) return;
+                try {
+                    subscriber.onNext(vote());
+                    subscriber.onCompleted();
+                } catch (Exception e) {
+                    subscriber.onError(e);
+                }
+            }
+        });
+    }
 
-        // Make sure a onComplete has been set
-        if (mVoteRequest.getRedditVoteCallback() == null) {
-            return;
+    private boolean vote() throws NullAccountManagerException, ApiException {
+        Logger.v("doInBackground() called");
+        if (mAccountManager == null) {
+            throw new NullAccountManagerException();
         }
 
-        // Now that we know the onComplete isn't null, execute it
-        mVoteRequest.getRedditVoteCallback().voteCallback(e);
+        mAccountManager.vote(mVoteRequest.getLink(), mVoteRequest.getVoteDirection());
+        return true;
     }
 }

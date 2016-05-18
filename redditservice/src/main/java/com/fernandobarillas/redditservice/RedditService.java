@@ -103,11 +103,6 @@ public class RedditService extends Service {
         return redditServiceIntent;
     }
 
-    public void downvoteLink(Link link, RedditVoteCallback voteCallback) {
-        Log.v(LOG_TAG, "downvoteLink() called with: " + "link = [" + link + "], voteCallback = [" + voteCallback + "]");
-        mRedditData.downvoteLink(link, voteCallback);
-    }
-
     public int getLastViewedLink() {
         return mRedditData.getLastViewedLink();
     }
@@ -138,9 +133,6 @@ public class RedditService extends Service {
         mRedditData.getNewLinks(subredditRequest);
     }
 
-    public void removeVote(Link link, RedditVoteCallback voteCallback) {
-        Log.d(LOG_TAG, "removeVote() called with: " + "link = [" + link + "], voteCallback = [" + voteCallback + "]");
-        mRedditData.removeVote(link, voteCallback);
     }
 
     public void saveLink(final Link link, final RedditSaveCallback saveCallback) {
@@ -153,13 +145,15 @@ public class RedditService extends Service {
         mRedditData.unsaveLink(link, saveCallback);
     }
 
-    public void upvoteLink(Link link, RedditVoteCallback voteCallback) {
-        Log.d(LOG_TAG, "upvoteLink() called with: " + "link = [" + link + "], voteCallback = [" + voteCallback + "]");
-        mRedditData.upvoteLink(link, voteCallback);
+    public Observable<Boolean> voteLink(final Link link, final VoteDirection voteDirection) {
+        // TODO: Handle error conditions here, only pass back the caller true or false and error
+        return mRedditData.voteLink(link, voteDirection)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread());
     }
 
-    public void voteLink(final Link link, final VoteDirection voteDirection, final RedditVoteCallback voteCallback) {
-        mRedditData.voteLink(link, voteDirection, voteCallback);
+    }
+
     }
 
     public Subscription getUserSubreddits(final RedditSubscriptionsCallback subscriptionsCallback) {

@@ -112,23 +112,6 @@ public class RedditData {
                            expirationTime);
     }
 
-    public void downvoteLink(final Link link, final RedditVoteCallback voteCallback) {
-        Log.d(LOG_TAG, "downvoteLink() called with: " + "link = [" + link + "], voteCallback = [" + voteCallback + "]");
-        verifyAuthentication(new RedditAuthenticationCallback() {
-            @Override
-            public void authenticationCallback(String username,
-                                               String authenticationJson,
-                                               long expirationTime,
-                                               Exception e) {
-                if (e == null) {
-                    mRedditAccount.downvoteLink(link, voteCallback);
-                } else if (voteCallback != null) {
-                    voteCallback.voteCallback(e);
-                } else {
-                    Log.e(LOG_TAG, "authenticationCallback: ", e);
-                }
-            }
-        });
     }
 
     public int getLastViewedLink() {
@@ -221,23 +204,6 @@ public class RedditData {
         return mRedditLinks.getRedditLinksList();
     }
 
-    public void removeVote(final Link link, final RedditVoteCallback voteCallback) {
-        Log.d(LOG_TAG, "removeVote() called with: " + "link = [" + link + "], voteCallback = [" + voteCallback + "]");
-        verifyAuthentication(new RedditAuthenticationCallback() {
-            @Override
-            public void authenticationCallback(String username,
-                                               String authenticationJson,
-                                               long expirationTime,
-                                               Exception e) {
-                if (e == null) {
-                    mRedditAccount.removeVote(link, voteCallback);
-                } else if (voteCallback != null) {
-                    voteCallback.voteCallback(e);
-                } else {
-                    Log.e(LOG_TAG, "authenticationCallback: ", e);
-                }
-            }
-        });
     }
 
     public void saveLink(final Link link, final RedditSaveCallback saveCallback) {
@@ -248,46 +214,6 @@ public class RedditData {
     public void unsaveLink(final Link link, final RedditSaveCallback saveCallback) {
         Log.v(LOG_TAG, "unsaveLink() called with: " + "link = [" + link + "], saveCallback = [" + saveCallback + "]");
         mRedditAccount.unsaveLink(link, saveCallback);
-    }
-
-    public void upvoteLink(final Link link, final RedditVoteCallback voteCallback) {
-        Log.d(LOG_TAG, "upvoteLink() called with: " + "link = [" + link + "], voteCallback = [" + voteCallback + "]");
-        verifyAuthentication(new RedditAuthenticationCallback() {
-            @Override
-            public void authenticationCallback(String username,
-                                               String authenticationJson,
-                                               long expirationTime,
-                                               Exception e) {
-                if (e == null) {
-                    mRedditAccount.upvoteLink(link, voteCallback);
-                } else if (voteCallback != null) {
-                    voteCallback.voteCallback(e);
-                } else {
-                    Log.e(LOG_TAG, "authenticationCallback: ", e);
-                }
-            }
-        });
-    }
-
-    public void voteLink(final Link link, final VoteDirection voteDirection, final RedditVoteCallback voteCallback) {
-        Log.v(LOG_TAG, "voteLink() called with: " + "link = [" + link +
-                "], voteDirection = [" + voteDirection +
-                "], voteCallback = [" + voteCallback + "]");
-        verifyAuthentication(new RedditAuthenticationCallback() {
-            @Override
-            public void authenticationCallback(String username,
-                                               String authenticationJson,
-                                               long expirationTime,
-                                               Exception e) {
-                if (e != null) {
-                    if (voteCallback != null) voteCallback.voteCallback(e);
-                    Log.e(LOG_TAG, "authenticationCallback: ", e);
-                    return;
-                }
-
-                mRedditAccount.voteLink(link, voteDirection, voteCallback);
-            }
-        });
     }
 
     // TODO: This method needs to block before the requests are let through
@@ -312,6 +238,9 @@ public class RedditData {
                                                           AuthenticationRequest.INVALID_EXPIRATION_TIME,
                                                           null);
         }
+    public Observable<Boolean> voteLink(final Link link, final VoteDirection voteDirection) {
+        Log.v(LOG_TAG, "voteLink()");
+        return mRedditAccount.voteLink(link, voteDirection);
     }
 
     public Observable<List<Subreddit>> getUserSubredditsObservable() {
