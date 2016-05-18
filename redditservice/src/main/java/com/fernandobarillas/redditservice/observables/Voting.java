@@ -1,4 +1,4 @@
-package com.fernandobarillas.redditservice.tasks;
+package com.fernandobarillas.redditservice.observables;
 
 import com.fernandobarillas.redditservice.exceptions.NullAccountManagerException;
 import com.fernandobarillas.redditservice.requests.VoteRequest;
@@ -13,11 +13,11 @@ import rx.Subscriber;
 /**
  * Created by fb on 12/15/15.
  */
-public class VoteTask {
+public class Voting {
     private AccountManager mAccountManager;
     private VoteRequest    mVoteRequest;
 
-    public VoteTask(AccountManager accountManager) {
+    public Voting(AccountManager accountManager) {
         mAccountManager = accountManager;
     }
 
