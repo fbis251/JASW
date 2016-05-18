@@ -1,4 +1,4 @@
-package com.fernandobarillas.redditservice.tasks;
+package com.fernandobarillas.redditservice.observables;
 
 import com.fernandobarillas.redditservice.exceptions.NullAccountManagerException;
 import com.fernandobarillas.redditservice.exceptions.SameSaveStateException;
@@ -13,11 +13,11 @@ import rx.Subscriber;
 /**
  * Created by fb on 12/15/15.
  */
-public class SaveTask {
+public class Saving {
     private SaveRequest    mSaveRequest;
     private AccountManager mAccountManager;
 
-    public SaveTask(AccountManager accountManager) {
+    public Saving(AccountManager accountManager) {
         mAccountManager = accountManager;
     }
 

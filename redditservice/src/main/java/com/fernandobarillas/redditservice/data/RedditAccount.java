@@ -4,7 +4,7 @@ import com.fernandobarillas.redditservice.models.Link;
 import com.fernandobarillas.redditservice.observables.Voting;
 import com.fernandobarillas.redditservice.requests.SaveRequest;
 import com.fernandobarillas.redditservice.requests.VoteRequest;
-import com.fernandobarillas.redditservice.tasks.SaveTask;
+import com.fernandobarillas.redditservice.observables.Saving;
 import com.orhanobut.logger.Logger;
 
 import net.dean.jraw.RedditClient;
@@ -29,8 +29,8 @@ public class RedditAccount {
     public Observable<Boolean> saveLink(final Link link, final boolean isSave) {
         Logger.v("saveLink() called with: " + "link = [" + link + "], isSave = [" + isSave + "]");
         SaveRequest saveRequest = new SaveRequest(link, isSave);
-        SaveTask    saveTask    = new SaveTask(mAccountManager);
-        return saveTask.save(saveRequest);
+        Saving      saving      = new Saving(mAccountManager);
+        return saving.save(saveRequest);
     }
 
     public Observable<Boolean> voteLink(Link link, VoteDirection voteDirection) {

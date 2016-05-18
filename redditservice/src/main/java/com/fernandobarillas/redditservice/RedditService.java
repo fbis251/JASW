@@ -19,6 +19,8 @@ import com.fernandobarillas.redditservice.models.Link;
 import com.fernandobarillas.redditservice.preferences.ServicePreferences;
 import com.fernandobarillas.redditservice.requests.AuthenticationRequest;
 import com.fernandobarillas.redditservice.requests.SubredditRequest;
+import com.fernandobarillas.redditservice.results.AuthResult;
+import com.fernandobarillas.redditservice.results.SaveResult;
 import com.fernandobarillas.redditservice.results.VoteResult;
 
 import net.dean.jraw.http.UserAgent;
