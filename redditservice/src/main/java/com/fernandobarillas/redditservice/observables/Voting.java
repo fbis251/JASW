@@ -26,11 +26,13 @@ public class Voting {
         return Observable.create(new Observable.OnSubscribe<Boolean>() {
             @Override
             public void call(Subscriber<? super Boolean> subscriber) {
-                if (subscriber.isUnsubscribed()) return;
                 try {
-                    subscriber.onNext(vote());
+                    boolean result = vote();
+                    if (subscriber.isUnsubscribed()) return;
+                    subscriber.onNext(result);
                     subscriber.onCompleted();
                 } catch (Exception e) {
+                    if (subscriber.isUnsubscribed()) return;
                     subscriber.onError(e);
                 }
             }

@@ -4,10 +4,10 @@ import android.util.Log;
 
 import com.fernandobarillas.redditservice.callbacks.RedditSaveCallback;
 import com.fernandobarillas.redditservice.models.Link;
+import com.fernandobarillas.redditservice.observables.Voting;
 import com.fernandobarillas.redditservice.requests.SaveRequest;
 import com.fernandobarillas.redditservice.requests.VoteRequest;
 import com.fernandobarillas.redditservice.tasks.SaveTask;
-import com.fernandobarillas.redditservice.tasks.VoteTask;
 
 import net.dean.jraw.RedditClient;
 import net.dean.jraw.managers.AccountManager;
@@ -49,7 +49,7 @@ public class RedditAccount {
 
     public Observable<Boolean> voteLink(Link link, VoteDirection voteDirection) {
         VoteRequest voteRequest = new VoteRequest(link, voteDirection);
-        VoteTask    voteTask    = new VoteTask(mAccountManager);
-        return voteTask.vote(voteRequest);
+        Voting      voting      = new Voting(mAccountManager);
+        return voting.vote(voteRequest);
     }
 }

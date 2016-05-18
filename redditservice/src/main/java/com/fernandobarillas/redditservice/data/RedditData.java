@@ -6,7 +6,6 @@ import android.util.Log;
 import com.fernandobarillas.redditservice.callbacks.RedditAuthenticationCallback;
 import com.fernandobarillas.redditservice.callbacks.RedditLinksCallback;
 import com.fernandobarillas.redditservice.callbacks.RedditSaveCallback;
-import com.fernandobarillas.redditservice.callbacks.RedditVoteCallback;
 import com.fernandobarillas.redditservice.models.Link;
 import com.fernandobarillas.redditservice.observables.AuthObservable;
 import com.fernandobarillas.redditservice.observables.UserSubredditsObservable;

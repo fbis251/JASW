@@ -19,6 +19,7 @@ import com.fernandobarillas.redditservice.models.Link;
 import com.fernandobarillas.redditservice.preferences.ServicePreferences;
 import com.fernandobarillas.redditservice.requests.AuthenticationRequest;
 import com.fernandobarillas.redditservice.requests.SubredditRequest;
+import com.fernandobarillas.redditservice.results.VoteResult;
 
 import net.dean.jraw.http.UserAgent;
 import net.dean.jraw.models.Subreddit;
@@ -34,6 +35,7 @@ import rx.Observable;
 import rx.Observer;
 import rx.Subscription;
 import rx.android.schedulers.AndroidSchedulers;
+import rx.functions.Func1;
 import rx.schedulers.Schedulers;
 
 public class RedditService extends Service {
@@ -145,10 +147,25 @@ public class RedditService extends Service {
         mRedditData.unsaveLink(link, saveCallback);
     }
 
-    public Observable<Boolean> voteLink(final Link link, final VoteDirection voteDirection) {
-        // TODO: Handle error conditions here, only pass back the caller true or false and error
+    public Observable<VoteResult> voteLink(final Link link, final VoteDirection voteDirection) {
+        final VoteResult voteResult = new VoteResult(link);
         return mRedditData.voteLink(link, voteDirection)
                 .subscribeOn(Schedulers.io())
+                .map(new Func1<Boolean, VoteResult>() {
+                    @Override
+                    public VoteResult call(Boolean aBoolean) {
+                        voteResult.setSuccessful(true);
+                        return voteResult;
+                    }
+                })
+                .onErrorReturn(new Func1<Throwable, VoteResult>() {
+                    @Override
+                    public VoteResult call(Throwable throwable) {
+                        voteResult.setSuccessful(false);
+                        voteResult.setThrowable(throwable);
+                        return voteResult;
+                    }
+                })
                 .observeOn(AndroidSchedulers.mainThread());
     }
 
