@@ -5,7 +5,6 @@ import android.util.Log;
 
 import com.fernandobarillas.redditservice.callbacks.RedditAuthenticationCallback;
 import com.fernandobarillas.redditservice.callbacks.RedditLinksCallback;
-import com.fernandobarillas.redditservice.callbacks.RedditSaveCallback;
 import com.fernandobarillas.redditservice.models.Link;
 import com.fernandobarillas.redditservice.observables.AuthObservable;
 import com.fernandobarillas.redditservice.observables.UserSubredditsObservable;
@@ -205,14 +204,8 @@ public class RedditData {
 
     }
 
-    public void saveLink(final Link link, final RedditSaveCallback saveCallback) {
-        Log.v(LOG_TAG, "saveLink() called with: " + "link = [" + link + "], saveCallback = [" + saveCallback + "]");
-        mRedditAccount.saveLink(link, saveCallback);
     }
 
-    public void unsaveLink(final Link link, final RedditSaveCallback saveCallback) {
-        Log.v(LOG_TAG, "unsaveLink() called with: " + "link = [" + link + "], saveCallback = [" + saveCallback + "]");
-        mRedditAccount.unsaveLink(link, saveCallback);
     }
 
     // TODO: This method needs to block before the requests are let through
@@ -266,5 +259,13 @@ public class RedditData {
         }
 
         return subredditSet;
+    }
+
+    public Observable<Boolean> saveLink(final Link link, final boolean isSave) {
+        return mRedditAccount.saveLink(link, isSave);
+    }
+
+    public Observable<Boolean> voteLink(final Link link, final VoteDirection voteDirection) {
+        return mRedditAccount.voteLink(link, voteDirection);
     }
 }

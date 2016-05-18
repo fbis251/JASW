@@ -1,60 +1,62 @@
 package com.fernandobarillas.redditservice.tasks;
 
-import android.os.AsyncTask;
-import android.util.Log;
-
 import com.fernandobarillas.redditservice.exceptions.NullAccountManagerException;
+import com.fernandobarillas.redditservice.exceptions.SameSaveStateException;
 import com.fernandobarillas.redditservice.requests.SaveRequest;
 
+import net.dean.jraw.ApiException;
 import net.dean.jraw.managers.AccountManager;
+
+import rx.Observable;
+import rx.Subscriber;
 
 /**
  * Created by fb on 12/15/15.
  */
-public class SaveTask extends AsyncTask<SaveRequest, Void, Exception> {
-    private static final String LOG_TAG = "VoteTask";
-    private SaveRequest mSaveRequest;
+public class SaveTask {
+    private SaveRequest    mSaveRequest;
+    private AccountManager mAccountManager;
 
-    @Override
-    protected Exception doInBackground(SaveRequest... saveRequests) {
-        Log.d(LOG_TAG, "doInBackground()");
-        if (saveRequests.length != 1) {
-            // TODO: Create custom Exception
-            return new Exception("More than 1 vote request passed in");
-        }
-
-        mSaveRequest = saveRequests[0];
-        AccountManager accountManager = mSaveRequest.getAccountManager();
-
-        if (accountManager == null) {
-            return new NullAccountManagerException();
-        }
-
-        try {
-            if (mSaveRequest.doSave()) {
-                mSaveRequest.getAccountManager().save(mSaveRequest.getLink());
-            } else {
-                mSaveRequest.getAccountManager().unsave(mSaveRequest.getLink());
-            }
-
-            return null;
-        } catch (Exception e) {
-            Log.e(LOG_TAG, "doInBackground: failed", e);
-            return e;
-        }
+    public SaveTask(AccountManager accountManager) {
+        mAccountManager = accountManager;
     }
 
-    @Override
-    protected void onPostExecute(Exception e) {
-        Log.d(LOG_TAG, "onPostExecute() called with: " + "e = [" + e + "]");
-        super.onPostExecute(e);
+    public Observable<Boolean> save(SaveRequest saveRequest) {
+        mSaveRequest = saveRequest;
+        return Observable.create(new Observable.OnSubscribe<Boolean>() {
+            @Override
+            public void call(Subscriber<? super Boolean> subscriber) {
+                try {
+                    boolean result = save();
+                    if (subscriber.isUnsubscribed()) return;
+                    subscriber.onNext(result);
+                    subscriber.onCompleted();
+                } catch (Exception e) {
+                    if (subscriber.isUnsubscribed()) return;
+                    subscriber.onError(e);
+                }
+            }
+        });
+    }
 
-        // Make sure a onComplete has been set
-        if (mSaveRequest.getRedditSaveCallback() == null) {
-            return;
+    private boolean save() throws NullAccountManagerException, ApiException, SameSaveStateException {
+        if (mAccountManager == null) {
+            throw new NullAccountManagerException();
         }
 
-        // Now that we know the onComplete isn't null, execute it
-        mSaveRequest.getRedditSaveCallback().saveCallback(e);
+        boolean isSaveRequest = mSaveRequest.isSave();
+        boolean currentSaveState = mSaveRequest.getLink()
+                .isSaved();
+        if (isSaveRequest == currentSaveState) {
+            throw new SameSaveStateException();
+        }
+
+        if (isSaveRequest) {
+            mAccountManager.save(mSaveRequest.getLink());
+        } else {
+            mAccountManager.unsave(mSaveRequest.getLink());
+        }
+
+        return true;
     }
 }
