@@ -1,29 +1,22 @@
 package com.fernandobarillas.redditservice.data;
 
-import android.text.TextUtils;
 import android.util.Log;
 
-import com.fernandobarillas.redditservice.callbacks.RedditAuthenticationCallback;
 import com.fernandobarillas.redditservice.callbacks.RedditLinksCallback;
 import com.fernandobarillas.redditservice.models.Link;
-import com.fernandobarillas.redditservice.observables.AuthObservable;
-import com.fernandobarillas.redditservice.observables.UserSubredditsObservable;
-import com.fernandobarillas.redditservice.requests.AuthenticationRequest;
+import com.fernandobarillas.redditservice.observables.UserSubscriptions;
 import com.fernandobarillas.redditservice.requests.SubredditRequest;
 
 import net.dean.jraw.RedditClient;
 import net.dean.jraw.http.LoggingMode;
-import net.dean.jraw.http.NetworkException;
 import net.dean.jraw.http.UserAgent;
-import net.dean.jraw.models.Listing;
 import net.dean.jraw.models.Subreddit;
 import net.dean.jraw.models.VoteDirection;
-import net.dean.jraw.paginators.UserSubredditsPaginator;
 
-import java.util.HashSet;
 import java.util.List;
 
 import rx.Observable;
+import rx.Subscriber;
 
 /**
  * Created by fb on 12/14/15.
@@ -32,37 +25,19 @@ public class RedditData {
     public static final  int    DOWNLOAD_RETRIES = 3; // Download attempts before giving up
     private static final String LOG_TAG          = "RedditData";
     private static RedditData    sInstance;
+    public         RedditClient  mRedditClient;
     private        RedditLinks   mRedditLinks;
     private        RedditAccount mRedditAccount;
-    private        RedditClient  mRedditClient;
-    private        String        mAuthenticationJson;
-    private        long          mExpirationTime;
 
     private UserAgent mUserAgent;
-    private String    mRefreshToken;
-    private String    mRedditClientId;
-    private String    mRedditRedirectUrl;
-    private boolean   mNeedsAuthentication;
 
-    private RedditData(UserAgent userAgent,
-                       String refreshToken,
-                       String redditClientId,
-                       String redditRedirectUrl,
-                       String authenticationJson,
-                       long expirationTime) {
+    // TODO: Enable this:
+//    private HashMap<String, RedditLinks> mRedditLinksHashMap;
+
+    private RedditData(UserAgent userAgent) {
         Log.d(LOG_TAG, "RedditData()");
 
-        if (TextUtils.isEmpty(redditClientId)) {
-            Log.e(LOG_TAG, "RedditData: redditClientId is empty!");
-        }
-
-        mNeedsAuthentication = true;
         mUserAgent = userAgent;
-        mRefreshToken = refreshToken;
-        mRedditClientId = redditClientId;
-        mRedditRedirectUrl = redditRedirectUrl;
-        mAuthenticationJson = authenticationJson;
-        mExpirationTime = expirationTime;
 
         mRedditClient = new RedditClient(mUserAgent);
         // TODO: Handle setting logging mode when app isn't debuggable
@@ -74,42 +49,20 @@ public class RedditData {
         mRedditAccount = new RedditAccount(mRedditClient);
     }
 
-    public static RedditData getInstance(UserAgent userAgent,
-                                         String refreshToken,
-                                         String redditClientId,
-                                         String redditRedirectUrl,
-                                         String authenticationJson,
-                                         long expirationTime) {
+    public static RedditData getInstance(UserAgent userAgent) {
         Log.v(LOG_TAG, "getInstance() called with: " + "userAgent = [" + userAgent + "]");
 
         if (sInstance == null) {
-            sInstance = new RedditData(userAgent,
-                                       refreshToken,
-                                       redditClientId,
-                                       redditRedirectUrl,
-                                       authenticationJson,
-                                       expirationTime);
+            sInstance = new RedditData(userAgent);
         }
 
         return sInstance;
     }
 
-    public static RedditData newInstance(UserAgent userAgent,
-                                         String refreshToken,
-                                         String redditClientId,
-                                         String redditRedirectUrl,
-                                         String authenticationJson,
-                                         long expirationTime) {
+    public static RedditData newInstance(UserAgent userAgent) {
         Log.v(LOG_TAG, "newInstance() called with: " + "userAgent = [" + userAgent + "]");
         sInstance = null;
-        return getInstance(userAgent,
-                           refreshToken,
-                           redditClientId,
-                           redditRedirectUrl,
-                           authenticationJson,
-                           expirationTime);
-    }
-
+        return getInstance(userAgent);
     }
 
     public int getLastViewedLink() {
@@ -128,137 +81,49 @@ public class RedditData {
         return mRedditLinks.getCount();
     }
 
-    public int getNsfwImageCount() {
-        return mRedditLinks.getNsfwImageCount();
+    public Observable<String> getLinksObservable(final SubredditRequest subredditRequest) {
+        return Observable.create(new Observable.OnSubscribe<String>() {
+
+            @Override
+            public void call(Subscriber<? super String> subscriber) {
+                Log.v(LOG_TAG, "getLinksObservable() call() called with: " + "subscriber = [" + subscriber + "]");
+                if (subscriber.isUnsubscribed()) return;
+
+                int attempts = 0;
+                while (attempts++ < DOWNLOAD_RETRIES) {
+                    mRedditLinks.getNewLinks(subredditRequest);
+                    subscriber.onNext("Yup");
+                }
+
+                subscriber.onCompleted();
+            }
+        });
     }
 
     public void getMoreLinks(final RedditLinksCallback linksCallback) {
         Log.v(LOG_TAG, "getMoreLinks()");
-        verifyAuthentication(new RedditAuthenticationCallback() {
-            @Override
-            public void authenticationCallback(String username,
-                                               String authenticationJson,
-                                               long expirationTime,
-                                               Exception e) {
-                if (e == null) {
-                    mRedditLinks.getMoreLinks(linksCallback);
-                } else if (linksCallback != null) {
-                    linksCallback.linksCallback(e);
-                } else {
-                    Log.e(LOG_TAG, "authenticationCallback: ", e);
-                }
-            }
-        });
+        mRedditLinks.getMoreLinks(linksCallback);
     }
 
     public void getNewLinks(final SubredditRequest subredditRequest) {
         Log.v(LOG_TAG, "getNewLinks() called with: " + "subredditRequest = [" + subredditRequest + "]");
+        int attempts = 0;
+        while (attempts++ < DOWNLOAD_RETRIES) {
+            mRedditLinks.getNewLinks(subredditRequest);
+        }
+    }
 
-        verifyAuthentication(new RedditAuthenticationCallback() {
-            @Override
-            public void authenticationCallback(String username,
-                                               String authenticationJson,
-                                               long expirationTime,
-                                               Exception e) {
-                if (e != null) {
-                    if (subredditRequest.getRedditLinksCallback() != null) {
-                        subredditRequest.getRedditLinksCallback().linksCallback(e);
-                    }
-                    return;
-                }
-                int                       attempts         = 0;
-                final RedditLinksCallback originalCallback = subredditRequest.getRedditLinksCallback();
-                RedditLinksCallback newCallback = new RedditLinksCallback() {
-                    @Override
-                    public void linksCallback(Exception e) {
-                        if (e != null) {
-                            if (e instanceof NetworkException) {
-                                NetworkException networkException = (NetworkException) e;
-                                Log.e(LOG_TAG,
-                                      "linksCallback: Error code: " + ((NetworkException) e).getResponse()
-                                              .getStatusCode());
-                                Log.e(LOG_TAG, "linksCallback: ", e);
-                                mNeedsAuthentication = true;
-                            } else {
-                                Log.e(LOG_TAG, "linksCallback: THE EXCEPTION IS", e);
-                            }
-                        }
-                        if (originalCallback != null) {
-                            originalCallback.linksCallback(e);
-                        }
-                    }
-                };
-
-                subredditRequest.setRedditLinksCallback(newCallback);
-
-                while (attempts++ < DOWNLOAD_RETRIES) {
-                    mRedditLinks.getNewLinks(subredditRequest);
-                }
-            }
-        });
+    public int getNsfwImageCount() {
+        return mRedditLinks.getNsfwImageCount();
     }
 
     public List<Link> getRedditLinksList() {
         return mRedditLinks.getRedditLinksList();
     }
 
-    }
-
-    }
-
-    }
-
-    // TODO: This method needs to block before the requests are let through
-    public synchronized void verifyAuthentication(RedditAuthenticationCallback authenticationCallback) {
-        Log.v(LOG_TAG, "verifyAuthentication() is authenticated: " + mRedditClient.isAuthenticated());
-        if (mNeedsAuthentication || !mRedditClient.isAuthenticated()) {
-            Log.v(LOG_TAG, "verifyAuthentication: Client needs authentication, running auth task");
-            AuthenticationRequest authenticationRequest = new AuthenticationRequest(mRedditClient,
-                                                                                    mRefreshToken,
-                                                                                    mRedditClientId,
-                                                                                    mRedditRedirectUrl,
-                                                                                    mAuthenticationJson,
-                                                                                    mExpirationTime,
-                                                                                    authenticationCallback);
-            AuthObservable authenticationObservable = new AuthObservable();
-            authenticationObservable.execute(authenticationRequest);
-            mNeedsAuthentication = false;
-        } else {
-            // RedditClient is properly authenticated, run onComplete with no Exception
-            authenticationCallback.authenticationCallback(null,
-                                                          null,
-                                                          AuthenticationRequest.INVALID_EXPIRATION_TIME,
-                                                          null);
-        }
-    public Observable<Boolean> voteLink(final Link link, final VoteDirection voteDirection) {
-        Log.v(LOG_TAG, "voteLink()");
-        return mRedditAccount.voteLink(link, voteDirection);
-    }
-
-    public Observable<List<Subreddit>> getUserSubredditsObservable() {
-        UserSubredditsObservable subredditsObservable = new UserSubredditsObservable(mRedditClient);
-        return subredditsObservable.getObservable();
-    }
-
-    /**
-     * Gets the logged in user's reddit subreddit subscriptions
-     */
-    public HashSet<String> getUserSubreddits() throws NetworkException, IllegalStateException {
-        Log.v(LOG_TAG, "getObservable() called");
-        UserSubredditsPaginator paginator = new UserSubredditsPaginator(mRedditClient, "subscriber");
-
-        // A Set doesn't allow any duplicate insertions
-        HashSet<String> subredditSet = new HashSet<>();
-        while (paginator.hasNext()) {
-            Listing<Subreddit> subs = paginator.next(true);
-            if (subs != null && subs.getChildren() != null) {
-                for (Subreddit subreddit : subs.getChildren()) {
-                    subredditSet.add(subreddit.getDisplayName());
-                }
-            }
-        }
-
-        return subredditSet;
+    public Observable<Subreddit> getSubscriptions() {
+        UserSubscriptions subredditsObservable = new UserSubscriptions(mRedditClient);
+        return subredditsObservable.getSubscriptions();
     }
 
     public Observable<Boolean> saveLink(final Link link, final boolean isSave) {
