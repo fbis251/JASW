@@ -2,14 +2,11 @@ package com.fernandobarillas.redditservice.preferences;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.preference.PreferenceManager;
-import android.util.Log;
 
-import com.fernandobarillas.redditservice.requests.AuthenticationRequest;
+import com.fernandobarillas.redditservice.requests.AuthRequest;
 
 public class ServicePreferences {
-    public static final  String PREFERENCES_KEY         = "REDDIT_SERVICE_PREFERENCES";
-    private static final String LOG_TAG                 = "ServicePreferences";
+    public static final  String PREFERENCES_NAME        = "reddit_service_preferences";
     private static final String AUTHENTICATION_JSON_KEY = "authentication_json";
     private static final String EXPIRATION_TIME_KEY     = "expiration_time";
     private static final String REDIRECT_URL_KEY        = "redirect_url";
@@ -19,10 +16,7 @@ public class ServicePreferences {
     private SharedPreferences mSharedPreferences;
 
     public ServicePreferences(Context context) {
-        Log.v(LOG_TAG, "ServicePreferences() called with: " + "context = [" + context + "]");
-        Log.d("ServicePreferences", "KEY " + PREFERENCES_KEY);
-
-        mSharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
+        mSharedPreferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE);
     }
 
     public String getAuthenticationJson() {
@@ -34,19 +28,11 @@ public class ServicePreferences {
     }
 
     public long getExpirationTime() {
-        return mSharedPreferences.getLong(EXPIRATION_TIME_KEY, AuthenticationRequest.INVALID_EXPIRATION_TIME);
+        return mSharedPreferences.getLong(EXPIRATION_TIME_KEY, AuthRequest.INVALID_EXPIRATION_TIME);
     }
 
     public void setExpirationTime(long expirationTime) {
         setLongPreference(EXPIRATION_TIME_KEY, expirationTime);
-    }
-
-    public String getRedditRedirectUrl() {
-        return mSharedPreferences.getString(REDIRECT_URL_KEY, null);
-    }
-
-    public void setRedditRedirectUrl(String redditRedirectUrl) {
-        setStringPreference(REDIRECT_URL_KEY, redditRedirectUrl);
     }
 
     public String getRedditClientId() {
@@ -55,6 +41,14 @@ public class ServicePreferences {
 
     public void setRedditClientId(String redditClientId) {
         setStringPreference(REDDIT_CLIENT_ID_KEY, redditClientId);
+    }
+
+    public String getRedditRedirectUrl() {
+        return mSharedPreferences.getString(REDIRECT_URL_KEY, null);
+    }
+
+    public void setRedditRedirectUrl(String redditRedirectUrl) {
+        setStringPreference(REDIRECT_URL_KEY, redditRedirectUrl);
     }
 
     public String getRefreshToken() {
@@ -74,10 +68,14 @@ public class ServicePreferences {
     }
 
     private void setLongPreference(String key, long value) {
-        mSharedPreferences.edit().putLong(key, value).apply();
+        mSharedPreferences.edit()
+                .putLong(key, value)
+                .apply();
     }
 
     private void setStringPreference(String key, String value) {
-        mSharedPreferences.edit().putString(key, value).apply();
+        mSharedPreferences.edit()
+                .putString(key, value)
+                .apply();
     }
 }
