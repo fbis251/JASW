@@ -5,26 +5,13 @@ package com.fernandobarillas.redditservice.results;
  */
 public class AuthResult {
     private boolean mIsAuthenticated;
-    private String  mUsername;
     private String  mAuthenticationJson;
     private long    mExpirationTime;
 
-    public AuthResult(boolean isAuthenticated,
-                      String username,
-                      String authenticationJson,
-                      long expirationTime) {
+    public AuthResult(boolean isAuthenticated, String authenticationJson, long expirationTime) {
         mIsAuthenticated = isAuthenticated;
-        mUsername = username;
         mAuthenticationJson = authenticationJson;
         mExpirationTime = expirationTime;
-    }
-
-    public boolean isAuthenticated() {
-        return mIsAuthenticated;
-    }
-
-    public String getUsername() {
-        return mUsername;
     }
 
     public String getAuthenticationJson() {
@@ -33,5 +20,9 @@ public class AuthResult {
 
     public long getExpirationTime() {
         return mExpirationTime;
+    }
+
+    public boolean isAuthenticated() {
+        return mIsAuthenticated;
     }
 }

@@ -1,11 +1,10 @@
 package com.fernandobarillas.redditservice.observables;
 
 import android.text.TextUtils;
-import android.util.Log;
 
-import com.fernandobarillas.redditservice.exceptions.AuthenticationException;
 import com.fernandobarillas.redditservice.requests.AuthRequest;
 import com.fernandobarillas.redditservice.results.AuthResult;
+import com.orhanobut.logger.Logger;
 
 import net.dean.jraw.RedditClient;
 import net.dean.jraw.http.oauth.Credentials;
@@ -22,26 +21,32 @@ import rx.Subscriber;
 /**
  * Created by fb on 12/15/15.
  */
-public class RedditAuth {
-    private static final String LOG_TAG = "RedditAuth";
+public class Authentication {
+    private static final String LOG_TAG = "Authentication";
     private AuthRequest  mAuthRequest;
-    private String       mAuthenticatedUsername;
     private String       mAuthenticationJson;
     private long         mExpirationTime;
     private RedditClient mRedditClient;
 
-    public RedditAuth(RedditClient redditClient) {
+    public Authentication(RedditClient redditClient) {
+        Logger.init(LOG_TAG);
         mRedditClient = redditClient;
     }
 
-    public Observable<AuthResult> authenticate(final AuthRequest authRequest) {
+    /**
+     * Performs authentication using an observable
+     *
+     * @param authRequest The request data to use during authentication
+     * @return An Observable that returns an AuthResult
+     */
+    public Observable<AuthResult> getAuthenticate(final AuthRequest authRequest) {
         mAuthRequest = authRequest;
         return Observable.create(new Observable.OnSubscribe<AuthResult>() {
             @Override
             public void call(Subscriber<? super AuthResult> subscriber) {
                 try {
-                    subscriber.onNext(authenticate());
-                } catch (OAuthException | AuthenticationException e) {
+                    subscriber.onNext(getAuthenticate());
+                } catch (Exception e) {
                     subscriber.onError(e);
                 }
                 subscriber.onCompleted();
@@ -49,7 +54,19 @@ public class RedditAuth {
         });
     }
 
-    private AuthResult authenticate() throws OAuthException, AuthenticationException {
+    /**
+     * Performs authentication synchronously
+     *
+     * @param authRequest The request data to use during authentication
+     * @return The result of the authentication procedure
+     * @throws OAuthException When an error occurs during the OAuth procedure
+     */
+    public AuthResult authenticate(final AuthRequest authRequest) throws OAuthException {
+        mAuthRequest = authRequest;
+        return getAuthenticate();
+    }
+
+    private AuthResult getAuthenticate() throws OAuthException {
         String      refreshToken       = mAuthRequest.getRefreshToken();
         String      redditClientId     = mAuthRequest.getRedditClientId();
         String      redditRedirectUrl  = mAuthRequest.getRedditRedirectUrl();
@@ -58,43 +75,42 @@ public class RedditAuth {
         OAuthHelper oAuthHelper        = mRedditClient.getOAuthHelper();
         OAuthData   oAuthData;
         Credentials credentials;
-        if (!refreshToken.isEmpty()) {
+        if (!TextUtils.isEmpty(refreshToken)) {
             // A user refresh token is stored
-            Log.i(LOG_TAG, "doInBackground: Using refresh token to authenticate");
+            Logger.i("doInBackground: Using refresh token to getAuthenticate");
             credentials = Credentials.installedApp(redditClientId, redditRedirectUrl);
             oAuthHelper.setRefreshToken(refreshToken);
             long    currentTime = new Date().getTime();
             boolean expired     = expirationTime < currentTime;
             if (!expired && !TextUtils.isEmpty(authenticationJson)) {
-                Log.v(LOG_TAG, "doInBackground: Using cached authentication data");
+                Logger.d("doInBackground: Using cached authentication data");
                 oAuthData = oAuthHelper.refreshToken(credentials, authenticationJson);
             } else {
-                Log.v(LOG_TAG, "doInBackground: Requesting new authentication data");
+                Logger.d("doInBackground: Requesting new authentication data");
                 oAuthData = oAuthHelper.refreshToken(credentials);
-                mExpirationTime = oAuthData.getExpirationDate().getTime();
-                mAuthenticationJson = oAuthData.getDataNode().toString();
+                mExpirationTime = oAuthData.getExpirationDate()
+                        .getTime();
+                mAuthenticationJson = oAuthData.getDataNode()
+                        .toString();
             }
         } else {
             // We can't perform a user login with no refresh token, this means that the
             // user hasn't tried to log in yet.
-            Log.i(LOG_TAG, "doInBackground: Performing app-only authentication");
+            Logger.i("doInBackground: Performing app-only authentication");
             UUID deviceUuid = new UUID(0, 0);
             credentials = Credentials.userlessApp(redditClientId, deviceUuid);
-            oAuthData = mRedditClient.getOAuthHelper().easyAuth(credentials);
+            oAuthData = mRedditClient.getOAuthHelper()
+                    .easyAuth(credentials);
+            mExpirationTime = oAuthData.getExpirationDate()
+                    .getTime();
+            mAuthenticationJson = oAuthData.getDataNode()
+                    .toString();
+            Logger.json(mAuthenticationJson);
         }
-        mRedditClient.authenticate(oAuthData);
-        // Pass back the authentication data to the caller in order to cache it for
-        // later use
-        if (mRedditClient.isAuthenticated()) {
-            // TODO: get this elsewhere so it doesn't create a new blocking HTTP request
-//            mAuthenticatedUsername = mRedditClient.getAuthenticatedUser();
 
-            return new AuthResult(mRedditClient.isAuthenticated(),
-                                  mAuthenticatedUsername,
-                                  mAuthenticationJson,
-                                  mExpirationTime);
-        } else {
-            throw new AuthenticationException();
-        }
+        mRedditClient.authenticate(oAuthData);
+        return new AuthResult(mRedditClient.isAuthenticated(),
+                              mAuthenticationJson,
+                              mExpirationTime);
     }
 }
