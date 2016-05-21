@@ -75,18 +75,18 @@ public class Authentication {
         OAuthHelper oAuthHelper        = mRedditClient.getOAuthHelper();
         OAuthData   oAuthData;
         Credentials credentials;
+        long        currentTime        = new Date().getTime();
+        boolean     expired            = expirationTime < currentTime;
         if (!TextUtils.isEmpty(refreshToken)) {
             // A user refresh token is stored
-            Logger.i("doInBackground: Using refresh token to getAuthenticate");
+            Logger.i("getAuthenticate: Using refresh token to getAuthenticate");
             credentials = Credentials.installedApp(redditClientId, redditRedirectUrl);
             oAuthHelper.setRefreshToken(refreshToken);
-            long    currentTime = new Date().getTime();
-            boolean expired     = expirationTime < currentTime;
             if (!expired && !TextUtils.isEmpty(authenticationJson)) {
-                Logger.d("doInBackground: Using cached authentication data");
+                Logger.d("getAuthenticate: Using cached authentication data");
                 oAuthData = oAuthHelper.refreshToken(credentials, authenticationJson);
             } else {
-                Logger.d("doInBackground: Requesting new authentication data");
+                Logger.d("getAuthenticate: Requesting new authentication data");
                 oAuthData = oAuthHelper.refreshToken(credentials);
                 mExpirationTime = oAuthData.getExpirationDate()
                         .getTime();
@@ -96,11 +96,18 @@ public class Authentication {
         } else {
             // We can't perform a user login with no refresh token, this means that the
             // user hasn't tried to log in yet.
-            Logger.i("doInBackground: Performing app-only authentication");
+            Logger.i("getAuthenticate: Performing app-only authentication");
             UUID deviceUuid = new UUID(0, 0);
             credentials = Credentials.userlessApp(redditClientId, deviceUuid);
-            oAuthData = mRedditClient.getOAuthHelper()
-                    .easyAuth(credentials);
+            if (!expired) {
+                Logger.d("getAuthenticate: Using cached authentication data");
+                oAuthData = mRedditClient.getOAuthHelper()
+                        .easyAuth(credentials, authenticationJson);
+            } else {
+                Logger.d("getAuthenticate: Requesting new authentication data");
+                oAuthData = mRedditClient.getOAuthHelper()
+                        .easyAuth(credentials);
+            }
             mExpirationTime = oAuthData.getExpirationDate()
                     .getTime();
             mAuthenticationJson = oAuthData.getDataNode()
