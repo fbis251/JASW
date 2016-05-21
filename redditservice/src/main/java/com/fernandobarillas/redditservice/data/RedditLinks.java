@@ -1,7 +1,6 @@
 package com.fernandobarillas.redditservice.data;
 
 import android.os.AsyncTask;
-import android.util.Log;
 
 import com.fernandobarillas.redditservice.callbacks.LinkDownloadCallback;
 import com.fernandobarillas.redditservice.callbacks.RedditLinksCallback;
@@ -12,6 +11,7 @@ import com.fernandobarillas.redditservice.models.Link;
 import com.fernandobarillas.redditservice.requests.LinkDownloadRequest;
 import com.fernandobarillas.redditservice.requests.SubredditRequest;
 import com.fernandobarillas.redditservice.tasks.LinkDownloadTask;
+import com.orhanobut.logger.Logger;
 
 import net.dean.jraw.RedditClient;
 import net.dean.jraw.paginators.SubredditPaginator;
@@ -27,10 +27,10 @@ import java.util.List;
  * API (Hot, New, Top, etc.), and filtering out any posts marked as NSFW.
  */
 public class RedditLinks {
-    public static final int MAX_LINK_LIMIT = 100; // Max link limit supported by reddit API
+    public static final  int    MAX_LINK_LIMIT      = 100; // Max link limit supported by reddit API
     // Last Link viewed tracking
-    public static final int NO_LAST_LINK_VIEWED = -1;
-    private static final String LOG_TAG = "RedditLinks";
+    public static final  int    NO_LAST_LINK_VIEWED = -1;
+    private static final String LOG_TAG             = "RedditLinks";
     // Reddit client and data
     private ArrayList<Link> mLinksList;
 
@@ -48,30 +48,13 @@ public class RedditLinks {
     private int mNsfwImageCount; // How many nsfw images were downloaded
 
     public RedditLinks(RedditClient redditClient) {
-        Log.d(LOG_TAG, "RedditLinks() called with: " + "redditClient = [" + redditClient + "]");
+        Logger.init(LOG_TAG);
+        Logger.d("RedditLinks() called with: " + "redditClient = [" + redditClient + "]");
         mRedditClient = redditClient;
         mLinksList = new ArrayList<>();
         mSubredditPaginator = null;
         mSubredditRequest = null;
         mNsfwImageCount = 0;
-    }
-
-    /**
-     * This method initiates the AsyncTask that downloads new reddit Links. This method is
-     * synchronized because we don't want to have more than one download task executing at a time.
-     * For example, this helps prevent excessive downloads from happening as a user swipes through
-     * the gallery.
-     */
-    private synchronized void executeLinkDownload(final SubredditRequest subredditRequest) {
-        Log.d(LOG_TAG, "executeLinkDownload() called with: " + "subredditRequest = [" + subredditRequest + "]");
-
-        validatePaginator(subredditRequest);
-
-        LinkDownloadRequest linkDownloadRequest =
-                new LinkDownloadRequest(mRedditClient, mSubredditPaginator, linkDownloadCallbackHandler(subredditRequest));
-        // Create a new download task to get more Links from reddit
-        mLinkDownloadTask = new LinkDownloadTask();
-        mLinkDownloadTask.execute(linkDownloadRequest);
     }
 
     /**
@@ -117,10 +100,10 @@ public class RedditLinks {
      * necessary.
      */
     public void getMoreLinks(final RedditLinksCallback linksCallback) {
-        Log.v(LOG_TAG, "getMoreLinks()");
+        Logger.v("getMoreLinks() called with: " + "linksCallback = [" + linksCallback + "]");
 
         if (mLinkDownloadTask != null && mLinkDownloadTask.getStatus() == AsyncTask.Status.RUNNING) {
-            Log.w(LOG_TAG, "DownloadFilesTask Already downloading data, returning");
+            Logger.w("DownloadFilesTask Already downloading data, returning");
             return;
         }
 
@@ -134,7 +117,7 @@ public class RedditLinks {
      * @param subredditRequest The new subreddit to download links from
      */
     public void getNewLinks(final SubredditRequest subredditRequest) {
-        Log.v(LOG_TAG, "getNewLinks() called with: " + "subredditRequest = [" + subredditRequest + "]");
+        Logger.v("getNewLinks() called with: " + "subredditRequest = [" + subredditRequest + "]");
         // Discard the old List to force a download of new data
         mLinksList = new ArrayList<>();
         // Force instantiation of a new Paginator to avoid it throwing an IllegalStateException
@@ -147,7 +130,7 @@ public class RedditLinks {
 
         // Cancel the current download task since we will be downloading new links
         if (mLinkDownloadTask != null) {
-            Log.i(LOG_TAG, "Cancelling pending link download");
+            Logger.i("Cancelling pending link download");
             mLinkDownloadTask.cancel(true);
             mLinkDownloadTask = null;
         }
@@ -172,9 +155,29 @@ public class RedditLinks {
      * @return A List containing all the downloaded reddit Links.
      */
     public List<Link> getRedditLinksList() {
-        Log.v(LOG_TAG, "getRedditLinks()");
+        Logger.v("getRedditLinksList() called");
 
         return mLinksList;
+    }
+
+    /**
+     * This method initiates the AsyncTask that downloads new reddit Links. This method is
+     * synchronized because we don't want to have more than one download task executing at a time.
+     * For example, this helps prevent excessive downloads from happening as a user swipes through
+     * the gallery.
+     */
+    private synchronized void executeLinkDownload(final SubredditRequest subredditRequest) {
+        Logger.v("executeLinkDownload() called with: " + "subredditRequest = [" + subredditRequest + "]");
+
+        validatePaginator(subredditRequest);
+
+        LinkDownloadRequest linkDownloadRequest = new LinkDownloadRequest(mRedditClient,
+                                                                          mSubredditPaginator,
+                                                                          linkDownloadCallbackHandler(
+                                                                                  subredditRequest));
+        // Create a new download task to get more Links from reddit
+        mLinkDownloadTask = new LinkDownloadTask();
+        mLinkDownloadTask.execute(linkDownloadRequest);
     }
 
     /**
@@ -187,14 +190,14 @@ public class RedditLinks {
      * @return The onComplete instance to be used after new links are successfully downloaded
      */
     private LinkDownloadCallback linkDownloadCallbackHandler(final SubredditRequest subredditRequest) {
-        Log.d(LOG_TAG, "linkDownloadCallbackHandler() called with: " + "subredditRequest = [" + subredditRequest + "]");
+        Logger.v("linkDownloadCallbackHandler() called with: " + "subredditRequest = [" + subredditRequest + "]");
         return new LinkDownloadCallback() {
             @Override
             public void linkDownloadCallback(List<Link> newLinksList, Exception e) {
-                Log.v(LOG_TAG, "linkDownloadCallback() called with: " + "newLinksList = [" + newLinksList + "], e = [" + e + "]");
+                Logger.v("linkDownloadCallback() called with: " + "newLinksList = [" + newLinksList + "], e = [" + e + "]");
                 RedditLinksCallback redditLinksCallback = subredditRequest.getRedditLinksCallback();
                 if (newLinksList == null) {
-                    Log.e(LOG_TAG, "linkDownloadCallback: Links list was null! Unknown error");
+                    Logger.e("linkDownloadCallback: Links list was null");
                     if (redditLinksCallback != null) {
                         redditLinksCallback.linksCallback(new LinksListNullException());
                     }
@@ -207,7 +210,7 @@ public class RedditLinks {
                 mNsfwImageCount = 0;
                 int oldLinkCount = mLinksList.size();
                 if (linkValidator != null) {
-                    Log.d(LOG_TAG, "linkDownloadCallback: Validating Links");
+                    Logger.d("linkDownloadCallback: Validating Links");
                     // Only add valid Links to the List
                     for (Link link : newLinksList) {
                         if (linkValidator.isLinkValid(link)) {
@@ -218,7 +221,7 @@ public class RedditLinks {
                         }
                     }
                 } else {
-                    Log.d(LOG_TAG, "linkDownloadCallback: Skipping Link validation");
+                    Logger.d("linkDownloadCallback: Skipping Link validation");
                     // No LinkValidator was passed in, add all new Links
                     mLinksList.addAll(newLinksList);
                 }
@@ -228,7 +231,8 @@ public class RedditLinks {
                 mLinksList = removeDuplicateLinks(mLinksList);
 
                 int newLinkCount = mLinksList.size() - oldLinkCount;
-                Log.i(LOG_TAG, String.format("linkDownloadCallback: Downloaded %d new Links", newLinkCount));
+                Logger.i(String.format("linkDownloadCallback: Downloaded %d new Links",
+                                       newLinkCount));
 
                 if (redditLinksCallback != null) {
                     redditLinksCallback.linksCallback(e);
@@ -256,29 +260,30 @@ public class RedditLinks {
      * @param subredditRequest The user-requested subreddit to load links from
      */
     private void validatePaginator(SubredditRequest subredditRequest) {
-        Log.d(LOG_TAG, "validatePaginator() called with: " + "subredditRequest = [" + subredditRequest + "]");
         String subreddit = subredditRequest.getSubreddit();
 
         // The source of the data will be reddit, we'll save the listings and the list of links
         if (mSubredditPaginator == null) {
-            Log.d(LOG_TAG, "Paginator was empty, instantiating a new one");
+            Logger.d("Paginator was empty, instantiating a new one");
 
             // Are we loading the frontpage or a specific subreddit?
             if (subreddit.isEmpty()) {
                 // Load the frontpage
-                Log.i(LOG_TAG, "validatePaginator:  New Paginator for Frontpage");
+                Logger.i("validatePaginator:  New Paginator for Frontpage");
                 mSubredditPaginator = new SubredditPaginator(mRedditClient);
             } else {
-                Log.i(LOG_TAG, "validatePaginator:  New Paginator for " + subreddit);
+                Logger.i("validatePaginator:  New Paginator for " + subreddit);
                 mSubredditPaginator = new SubredditPaginator(mRedditClient, subreddit);
             }
 
             mSubredditPaginator.setLimit(subredditRequest.getLinkLimit());
             mSubredditPaginator.setSorting(subredditRequest.getSorting());
-            mSubredditPaginator.setTimePeriod(subredditRequest.getTimePeriod());
+            if (subredditRequest.getTimePeriod() != null) {
+                mSubredditPaginator.setTimePeriod(subredditRequest.getTimePeriod());
+            }
 
         } else {
-            Log.i(LOG_TAG, "validatePaginator: Using existing Paginator for " + subreddit);
+            Logger.i("validatePaginator: Using existing Paginator for " + subreddit);
             // TODO: Allow changing settings for existing paginator. This is to get rid of the
             // IllegalStateException. Might just need to set the Paginator to null and pass in a
             // "downloadNew" flag from the UI request
