@@ -61,7 +61,13 @@ public class Link extends PublicContribution {
         Thing thing = (Thing) otherObject;
 
         // Compare the ID String values and use that as the return value
-        return this.getId().equals(thing.getId());
+        return this.getId()
+                .equals(thing.getId());
+    }
+
+    @Override
+    public String toString() {
+        return String.format("%s %s %s", getId(), getTitle(), getUrl());
     }
 
     public List<String> getAlbumUrls() {
@@ -76,6 +82,10 @@ public class Link extends PublicContribution {
         return mAuthor;
     }
 
+    public int getCommentCount() {
+        return mSubmission.getCommentCount();
+    }
+
     public String getDomain() {
         return mSubmission.getDomain();
     }
@@ -84,12 +94,12 @@ public class Link extends PublicContribution {
         return mPermaLink;
     }
 
-    public String getSubredditName() {
-        return mSubredditName;
+    public Submission getSubmission() {
+        return mSubmission;
     }
 
-    public String getTitle() {
-        return mTitle;
+    public String getSubredditName() {
+        return mSubredditName;
     }
 
     public String getThumbnail() {
@@ -100,8 +110,28 @@ public class Link extends PublicContribution {
         return mThumbnails;
     }
 
+    public String getTitle() {
+        return mTitle;
+    }
+
     public String getUrl() {
         return mUrl;
+    }
+
+    public VoteDirection getVoteDirection() {
+        return mVoteDirection;
+    }
+
+    public void setVoteDirection(VoteDirection voteDirection) {
+        mVoteDirection = voteDirection;
+    }
+
+    public boolean isDownvoted() {
+        return getVoteDirection() == VoteDirection.DOWNVOTE;
+    }
+
+    public boolean isGilded() {
+        return (getTimesGilded() != null && getTimesGilded() > 0);
     }
 
     public Boolean isNsfw() {
@@ -112,27 +142,14 @@ public class Link extends PublicContribution {
         return mIsSaved;
     }
 
-    public void setScore(int score) {
-
+    public boolean isUpvoted() {
+        return getVoteDirection() == VoteDirection.UPVOTE;
     }
 
     public void setSaved(Boolean isSaved) {
         mIsSaved = isSaved;
     }
 
-    public void setVoteDirection(VoteDirection voteDirection) {
-        mVoteDirection = voteDirection;
-    }
-
-    public VoteDirection getVoteDirection() {
-        return mVoteDirection;
-    }
-
-    public boolean isUpvoted() {
-        return getVoteDirection() == VoteDirection.UPVOTE;
-    }
-
-    public boolean isDownvoted() {
-        return getVoteDirection() == VoteDirection.DOWNVOTE;
+    public void setScore(int score) {
     }
 }
