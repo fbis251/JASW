@@ -33,20 +33,24 @@ import java.util.Date;
 import java.util.concurrent.TimeUnit;
 
 import rx.Observable;
+import rx.Subscription;
 import rx.android.schedulers.AndroidSchedulers;
 import rx.functions.Action1;
 import rx.functions.Func1;
 
 public class MainActivity extends AppCompatActivity {
-    private static final int UPDATE_INTERVAL = 1; // Seconds between UI updates from RedditService
+    private static final String LOG_TAG         = "MainActivity";
+    private static final int    UPDATE_INTERVAL = 1; // Seconds between UI updates from RedditService
+
     private RedditService        mRedditService;
     private TextView             mElapsedTimeTextView;
     private Button               mGetMoreLinksButton;
     private FloatingActionButton mFab;
     private ServiceConnection    mRedditServiceConnection;
+    private Subscription         mWaitForServiceSubscription;
 
     public MainActivity() {
-        Logger.init();
+        Logger.init(LOG_TAG);
         mRedditServiceConnection = new MainConnection();
     }
 
@@ -108,8 +112,8 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         Logger.v("onPause() called");
-        super.onPause();
         unbindService(mRedditServiceConnection);
+        super.onPause();
     }
 
     @Override
@@ -122,14 +126,14 @@ public class MainActivity extends AppCompatActivity {
         } catch (PackageManager.NameNotFoundException e) {
             e.printStackTrace();
         }
-        String    platform       = "Android";
-        String    appId          = getApplication().getPackageName();
-        String    version        = (packageInfo != null) ? packageInfo.versionName : "";
-        String    redditUsername = "fbis251";
-        UserAgent appUserAgent   = UserAgent.of(platform, appId, version, redditUsername);
+        String    platform        = "Android";
+        String    appId           = getApplication().getPackageName();
+        String    version         = (packageInfo != null) ? packageInfo.versionName : "";
+        String    creatorUsername = "fbis251";
+        UserAgent appUserAgent    = UserAgent.of(platform, appId, version, creatorUsername);
 
         Intent redditServiceIntent = RedditService.getRedditServiceIntent(getApplicationContext(),
-                                                                          PrivateConstants.REFRESH_TOKEN,
+                                                                          PrivateConstants.USERNAME,
                                                                           PrivateConstants.REDDIT_CLIENT_ID,
                                                                           PrivateConstants.REDDIT_REDIRECT_URL,
                                                                           appUserAgent);
@@ -154,6 +158,11 @@ public class MainActivity extends AppCompatActivity {
         };
     }
 
+    private void stopWaiting() {
+        Logger.v("stopWaiting() called");
+        if (mWaitForServiceSubscription != null) mWaitForServiceSubscription.unsubscribe();
+    }
+
     private void updateElapsedTimeTextView() {
         Logger.v("updateElapsedTimeTextView() called");
         final long startTime = new Date().getTime();
@@ -164,12 +173,41 @@ public class MainActivity extends AppCompatActivity {
                     public Object call(Long aLong) {
                         if (mElapsedTimeTextView == null || mRedditService == null) return null;
 
-                        long elapsedTime = (new Date().getTime() - startTime) / 1000;
-                        int  linkCount   = mRedditService.getLinkCount();
+                        boolean isReady     = mRedditService.isServiceReady();
+                        long    elapsedTime = (new Date().getTime() - startTime) / 1000;
+                        int     linkCount   = mRedditService.getLinkCount();
 
-                        mElapsedTimeTextView.setText(String.format("%d second(s)\nLink Count: %d",
-                                                                   elapsedTime,
-                                                                   linkCount));
+                        mElapsedTimeTextView.setText(String.format(
+                                "%d second(s)\n%s\nLink Count: %d",
+                                elapsedTime,
+                                (isReady) ? "Ready" : "NOT READY",
+                                linkCount));
+                        return null;
+                    }
+                })
+                .subscribe();
+    }
+
+    private void waitForService() {
+        mWaitForServiceSubscription = Observable.interval(UPDATE_INTERVAL, TimeUnit.SECONDS)
+                .map(new Func1<Long, Object>() {
+                    @Override
+                    public Object call(Long aLong) {
+                        if (mRedditService == null) return null;
+                        if (!mRedditService.isServiceReady()) {
+                            Logger.d("waitForService() Service not ready yet, waiting");
+                            return null;
+                        }
+                        Logger.i("waitForService() Service is ready, performing request");
+                        SubredditRequest subredditRequest = new SubredditRequest.Builder("all").setLinkLimit(
+                                100)
+                                .setSorting(Sorting.TOP)
+                                .setTimePeriod(TimePeriod.YEAR)
+                                .setLinkValidator(new TestValidator())
+                                .setRedditLinksCallback(handleRedditDataUpdate(mElapsedTimeTextView))
+                                .build();
+                        mRedditService.getNewLinks(subredditRequest);
+                        stopWaiting();
                         return null;
                     }
                 })
@@ -188,13 +226,7 @@ public class MainActivity extends AppCompatActivity {
                 // TODO: Handle service unavailable, perform retries
             }
 
-            SubredditRequest subredditRequest = new SubredditRequest.Builder("all").setLinkLimit(50)
-                    .setSorting(Sorting.TOP)
-                    .setTimePeriod(TimePeriod.YEAR)
-                    .setLinkValidator(new TestValidator())
-                    .setRedditLinksCallback(handleRedditDataUpdate(mElapsedTimeTextView))
-                    .build();
-            mRedditService.getNewLinks(subredditRequest);
+            waitForService();
         }
 
         public void onServiceDisconnected(ComponentName className) {
