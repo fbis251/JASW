@@ -5,102 +5,83 @@ import android.content.Context;
 import android.content.Intent;
 import android.os.Binder;
 import android.os.IBinder;
-import android.support.annotation.NonNull;
 import android.text.TextUtils;
-import android.util.Log;
 
-import com.fernandobarillas.redditservice.callbacks.RedditAuthenticationCallback;
 import com.fernandobarillas.redditservice.callbacks.RedditLinksCallback;
-import com.fernandobarillas.redditservice.callbacks.RedditSaveCallback;
-import com.fernandobarillas.redditservice.callbacks.RedditSubscriptionsCallback;
-import com.fernandobarillas.redditservice.callbacks.RedditVoteCallback;
 import com.fernandobarillas.redditservice.data.RedditData;
 import com.fernandobarillas.redditservice.models.Link;
+import com.fernandobarillas.redditservice.observables.Authentication;
+import com.fernandobarillas.redditservice.preferences.RedditAuthPreferences;
 import com.fernandobarillas.redditservice.preferences.ServicePreferences;
-import com.fernandobarillas.redditservice.requests.AuthenticationRequest;
+import com.fernandobarillas.redditservice.requests.AuthRequest;
 import com.fernandobarillas.redditservice.requests.SubredditRequest;
 import com.fernandobarillas.redditservice.results.AuthResult;
 import com.fernandobarillas.redditservice.results.SaveResult;
 import com.fernandobarillas.redditservice.results.VoteResult;
+import com.orhanobut.logger.Logger;
 
 import net.dean.jraw.http.UserAgent;
-import net.dean.jraw.models.Subreddit;
+import net.dean.jraw.http.oauth.OAuthException;
 import net.dean.jraw.models.VoteDirection;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.util.HashSet;
-import java.util.List;
 
 import rx.Observable;
 import rx.Observer;
-import rx.Subscription;
 import rx.android.schedulers.AndroidSchedulers;
 import rx.functions.Func1;
 import rx.schedulers.Schedulers;
 
 public class RedditService extends Service {
-    public static final  String REDDIT_BASE_URL         = "https://reddit.com";
+    private static final String LOG_TAG                 = "RedditService";
+    public static final  String USERNAME_KEY            = "username";
     public static final  String USER_AGENT_KEY          = "user_agent";
-    public static final  String REFRESH_TOKEN_KEY       = "refresh_token";
     public static final  String REDDIT_CLIENT_ID_KEY    = "reddit_client_id";
     public static final  String REDDIT_REDIRECT_URL_KEY = "reddit_redirect_url";
-    public static final  int    RELOAD_LIMIT            = 50; // How many links cached before a reload is triggered
-    private static final String LOG_TAG                 = "RedditService";
 
     private final IBinder mIBinder = new RedditBinder();
-
-    private ServicePreferences mServicePreferences;
-    private RedditData         mRedditData;
+    private RedditAuthPreferences mAuthPreferences;
+    private ServicePreferences    mServicePreferences;
+    private RedditData            mRedditData;
+    private boolean mIsServiceReady = false; // Ready to provide data
 
     public RedditService() {
-        Log.d(LOG_TAG, "RedditService() instantiated");
-        if (mServicePreferences == null) return;
-        // TODO: Allow the redditService to handle the instance of a subredditRequest to allow easy access to a single subreddit paginator
-
-        Log.d("RedditService", "Getting RedditData instance");
-        mRedditData = RedditData.getInstance(UserAgent.of(mServicePreferences.getUserAgentString()),
-                                             mServicePreferences.getRefreshToken(),
-                                             mServicePreferences.getRedditClientId(),
-                                             mServicePreferences.getRedditRedirectUrl(),
-                                             mServicePreferences.getAuthenticationJson(),
-                                             mServicePreferences.getExpirationTime());
-    }
-
-    @Override
-    public IBinder onBind(Intent intent) {
-        Log.d(LOG_TAG, "onBind() called with: " + "intent = [" + intent + "]");
-        initializeService(intent);
-
-        return mIBinder;
-    }
-
-    @Override
-    public void onDestroy() {
-        Log.d(LOG_TAG, "onDestroy()");
-        super.onDestroy();
+        Logger.init(LOG_TAG)
+                .hideThreadInfo();
+        Logger.d("RedditService() instantiated");
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        Log.d(LOG_TAG,
-              "onStartCommand() called with: " + "intent = [" + intent + "], flags = [" + flags + "], startId = [" + startId + "]");
+        Logger.v("onStartCommand() called with: " + "intent = [" + intent + "], flags = [" + flags + "], startId = [" + startId + "]");
         initializeService(intent);
 
         return Service.START_NOT_STICKY;
     }
 
-    public static Intent getRedditServiceIntent(@NonNull Context context,
-                                                String refreshToken,
-                                                @NonNull String clientId,
-                                                @NonNull String redirectUrl,
-                                                @NonNull UserAgent appUserAgent) {
-        Log.v(LOG_TAG, "getRedditServiceIntent()");
+    @Override
+    public void onDestroy() {
+        Logger.v("onDestroy() called");
+        super.onDestroy();
+    }
+
+    @Override
+    public IBinder onBind(Intent intent) {
+        Logger.d("onBind() called with: " + "intent = [" + intent + "]");
+        initializeService(intent);
+
+        return mIBinder;
+    }
+
+    public static Intent getRedditServiceIntent(Context context,
+                                                String username,
+                                                String clientId,
+                                                String redirectUrl,
+                                                UserAgent appUserAgent) {
+        Logger.init(LOG_TAG);
+        Logger.v("getRedditServiceIntent()");
 
         // Bind the reddit service to this Activity
         Intent redditServiceIntent = new Intent(context, RedditService.class);
-        redditServiceIntent.putExtra(RedditService.REFRESH_TOKEN_KEY, refreshToken);
+        redditServiceIntent.putExtra(RedditService.USERNAME_KEY, username);
         redditServiceIntent.putExtra(RedditService.REDDIT_CLIENT_ID_KEY, clientId);
         redditServiceIntent.putExtra(RedditService.REDDIT_REDIRECT_URL_KEY, redirectUrl);
         redditServiceIntent.putExtra(RedditService.USER_AGENT_KEY, appUserAgent.toString());
@@ -123,30 +104,43 @@ public class RedditService extends Service {
         return mRedditData.getLinkCount();
     }
 
-    public int getNsfwImageCount() {
-        return mRedditData.getNsfwImageCount();
-    }
-
     public void getMoreLinks(final RedditLinksCallback linksCallback) {
-        Log.v(LOG_TAG, "getMoreLinks() called with: " + "linksCallback = [" + linksCallback + "]");
         mRedditData.getMoreLinks(linksCallback);
     }
 
     public void getNewLinks(final SubredditRequest subredditRequest) {
-        Log.v(LOG_TAG, "getNewLinks() called with: " + "subredditRequest = [" + subredditRequest + "]");
+        Logger.v("getNewLinks() called with: " + "subredditRequest = [" + subredditRequest + "]");
         mRedditData.getNewLinks(subredditRequest);
     }
 
+    public int getNsfwImageCount() {
+        return mRedditData.getNsfwImageCount();
     }
 
-    public void saveLink(final Link link, final RedditSaveCallback saveCallback) {
-        Log.v(LOG_TAG, "saveLink() called with: " + "link = [" + link + "], saveCallback = [" + saveCallback + "]");
-        mRedditData.saveLink(link, saveCallback);
+    public boolean isServiceReady() {
+        return mIsServiceReady;
     }
 
-    public void unsaveLink(final Link link, final RedditSaveCallback saveCallback) {
-        Log.v(LOG_TAG, "unsaveLink() called with: " + "link = [" + link + "], saveCallback = [" + saveCallback + "]");
-        mRedditData.unsaveLink(link, saveCallback);
+    public Observable<SaveResult> saveLink(final Link link, final boolean isSave) {
+        final SaveResult saveResult = new SaveResult(link);
+        return mRedditData.saveLink(link, isSave)
+                .subscribeOn(Schedulers.io())
+                .map(new Func1<Boolean, SaveResult>() {
+                    @Override
+                    public SaveResult call(Boolean aBoolean) {
+                        saveResult.setSuccessful(true);
+                        return saveResult;
+                    }
+                })
+                .onErrorReturn(new Func1<Throwable, SaveResult>() {
+                    @Override
+                    public SaveResult call(Throwable throwable) {
+                        saveResult.setSuccessful(false);
+                        saveResult.setThrowable(throwable);
+                        return saveResult;
+                    }
+                })
+                .observeOn(AndroidSchedulers.mainThread());
     }
 
     public Observable<VoteResult> voteLink(final Link link, final VoteDirection voteDirection) {
@@ -171,104 +165,103 @@ public class RedditService extends Service {
                 .observeOn(AndroidSchedulers.mainThread());
     }
 
-    }
+    private void asyncAuthenticate() {
+        AuthRequest request = getNewAuthRequest();
 
-    }
+        Authentication authentication = new Authentication(mRedditData.mRedditClient);
+        authentication.getAuthenticate(request)
+                .subscribeOn(Schedulers.io())
+                .subscribe(new Observer<AuthResult>() {
 
-    public Subscription getUserSubreddits(final RedditSubscriptionsCallback subscriptionsCallback) {
-        Observable<List<Subreddit>> subredditsObservable = mRedditData.getUserSubredditsObservable();
-        final HashSet<Subreddit>    subredditsSet        = new HashSet<>();
-        return subredditsObservable.subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .subscribe(new Observer<List<Subreddit>>() {
                     @Override
                     public void onCompleted() {
-                        Log.v(LOG_TAG, "getUserSubreddits onCompleted: Set size: " + subredditsSet.size());
-                        if (subscriptionsCallback != null) {
-                            subscriptionsCallback.onComplete(subredditsSet);
-                        }
+                        Logger.v("asyncAuthenticate onCompleted() called");
                     }
 
                     @Override
                     public void onError(Throwable e) {
-                        Log.e(LOG_TAG, "getUserSubreddits onError: ", e);
-
-                        if (subscriptionsCallback != null) {
-                            subscriptionsCallback.onError(e);
-                        }
+                        Logger.e(e, "asyncAuthenticate");
+                        // TODO: let the client know that authentication failed
                     }
 
                     @Override
-                    public void onNext(List<Subreddit> subreddits) {
-                        Log.v(LOG_TAG, "getUserSubreddits onNext() called with: " + "subreddits = [" +
-                                subreddits + "]");
-                        subredditsSet.addAll(subreddits);
+                    public void onNext(AuthResult authResult) {
+                        Logger.v("asyncAuthenticate onNext() called with: " + "authResult = [" +
+                                         authResult + "]");
+                        handleAuthResult(authResult);
                     }
                 });
     }
 
-    private void initializeService(Intent intent) {
-        Log.v(LOG_TAG, "initializeService() called with: " + "intent = [" + intent + "]");
+    private void authenticate() {
+        AuthRequest request = getNewAuthRequest();
 
-        Log.e(LOG_TAG, "onCreate: Trying to log");
-        Logger logger = LoggerFactory.getLogger(RedditService.class);
-        logger.info("Hello World");
-        Log.e(LOG_TAG, "onCreate: Trying to log, done");
+        Authentication authentication = new Authentication(mRedditData.mRedditClient);
+        try {
+            handleAuthResult(authentication.authenticate(request));
+        } catch (OAuthException e) {
+            Logger.e(e, "authenticate() failed");
+        }
+    }
+
+    private AuthRequest getNewAuthRequest() {
+        if (mAuthPreferences.getUsername() != null && mAuthPreferences.getRefreshToken() == null) {
+            // TODO: Handle non-userless with no refresh token
+            return null;
+        }
+
+        return new AuthRequest(mAuthPreferences.getRefreshToken(),
+                               mServicePreferences.getRedditClientId(),
+                               mServicePreferences.getRedditRedirectUrl(),
+                               mAuthPreferences.getAuthenticationJson(),
+                               mAuthPreferences.getExpirationTime());
+    }
+
+    private void handleAuthResult(AuthResult authResult) {
+        Logger.v("handleAuthResult() called with: " + "authResult = [" + authResult + "]");
+        String authenticationJson = authResult.getAuthenticationJson();
+        long   expirationTime     = authResult.getExpirationTime();
+        Logger.v("authenticationCallback: Caching authentication data");
+        // Cache the authentication data
+        if (expirationTime != AuthRequest.INVALID_EXPIRATION_TIME) {
+            mAuthPreferences.setExpirationTime(expirationTime);
+        }
+        if (!TextUtils.isEmpty(authenticationJson)) {
+            mAuthPreferences.setAuthenticationJson(authenticationJson);
+        }
+        mIsServiceReady = true;
+    }
+
+    private void initializeService(Intent intent) {
+        Logger.v("initializeService() called with: " + "intent = [" + intent + "]");
 
         Context serviceContext = this;
+
+        String username = intent.getExtras()
+                .getString(USERNAME_KEY, null);
+        String userAgentString = intent.getExtras()
+                .getString(USER_AGENT_KEY, Constants.DEFAULT_USER_AGENT);
+        String redditClientId = intent.getExtras()
+                .getString(REDDIT_CLIENT_ID_KEY);
+        String redditRedirectUrl = intent.getExtras()
+                .getString(REDDIT_REDIRECT_URL_KEY);
+
+        mAuthPreferences = new RedditAuthPreferences(serviceContext, username);
         mServicePreferences = new ServicePreferences(serviceContext);
 
-        String userAgentString   = intent.getExtras().getString(USER_AGENT_KEY, Constants.DEFAULT_USER_AGENT);
-        String refreshToken      = intent.getExtras().getString(REFRESH_TOKEN_KEY);
-        String redditClientId    = intent.getExtras().getString(REDDIT_CLIENT_ID_KEY);
-        String redditRedirectUrl = intent.getExtras().getString(REDDIT_REDIRECT_URL_KEY);
-
         mServicePreferences.setUserAgentString(userAgentString);
-        mServicePreferences.setRefreshToken(refreshToken);
         mServicePreferences.setRedditClientId(redditClientId);
         mServicePreferences.setRedditRedirectUrl(redditRedirectUrl);
 
         // TODO: Handle null extras
-        mRedditData = RedditData.getInstance(UserAgent.of(mServicePreferences.getUserAgentString()),
-                                             mServicePreferences.getRefreshToken(),
-                                             mServicePreferences.getRedditClientId(),
-                                             mServicePreferences.getRedditRedirectUrl(),
-                                             mServicePreferences.getAuthenticationJson(),
-                                             mServicePreferences.getExpirationTime());
+        mRedditData = RedditData.getInstance(UserAgent.of(mServicePreferences.getUserAgentString()));
 
-
-        mRedditData.verifyAuthentication(new RedditAuthenticationCallback() {
-            @Override
-            public void authenticationCallback(String username,
-                                               String authenticationJson,
-                                               long expirationTime,
-                                               Exception e) {
-                if (e != null) {
-                    Log.e(LOG_TAG, "authenticationCallback: ", e);
-                    return;
-                }
-
-                Log.v(LOG_TAG, "authenticationCallback: Caching authentication data");
-                if (!TextUtils.isEmpty(username)) {
-                    mServicePreferences.setAuthenticationJson(authenticationJson);
-                    Log.e(LOG_TAG, "authenticationCallback: Authenticated user: " + username);
-                    // TODO: Make shared prefs save auth data for individal usernames
-                }
-                // Cache the authentication data
-                if (expirationTime != AuthenticationRequest.INVALID_EXPIRATION_TIME) {
-                    mServicePreferences.setExpirationTime(expirationTime);
-                }
-                if (!TextUtils.isEmpty(authenticationJson)) {
-                    mServicePreferences.setAuthenticationJson(authenticationJson);
-                }
-            }
-        });
-        // TODO: Force new instance of reddit data for new user logins/user switching
+        asyncAuthenticate();
     }
 
     public class RedditBinder extends Binder {
         public RedditService getService() {
-            Log.d(LOG_TAG, "getService()");
+            Logger.d("getService()");
             return RedditService.this;
         }
     }
