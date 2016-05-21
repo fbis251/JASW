@@ -21,8 +21,7 @@ public class UserSubscriptions {
     private RedditClient mRedditClient;
 
     public UserSubscriptions(RedditClient redditClient) {
-        Log.v(LOG_TAG,
-              "UserSubscriptions() called with: " + "redditClient = [" + redditClient + "]");
+        Log.v(LOG_TAG, "UserSubscriptions() called with: " + "redditClient = [" + redditClient + "]");
         mRedditClient = redditClient;
     }
 
@@ -31,8 +30,7 @@ public class UserSubscriptions {
             @Override
             public void call(Subscriber<? super Subreddit> subscriber) {
                 Log.v(LOG_TAG, "downloadSubscriptions()");
-                UserSubredditsPaginator paginator = new UserSubredditsPaginator(mRedditClient,
-                                                                                "subscriber");
+                UserSubredditsPaginator paginator = new UserSubredditsPaginator(mRedditClient, "subscriber");
                 paginator.setLimit(RedditLinks.MAX_LINK_LIMIT);
                 try {
                     while (paginator.hasNext()) {
