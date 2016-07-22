@@ -8,3 +8,8 @@
 /captures
 PrivateConstants.java
 .idea/dictionaries
+
+# Idea files white/blacklist
+.idea/*
+!.idea/copyright/*
+!.idea/codeStyleSettings.xml
