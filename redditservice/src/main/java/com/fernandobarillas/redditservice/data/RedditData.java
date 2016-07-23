@@ -74,13 +74,14 @@ public class RedditData {
     }
 
     /**
-     * @param link   The contribution to save/unsave
-     * @param isSave True if you want to save the contribution, false if you want to unsave (remove
-     *               it from your saved list)
+     * @param contribution The contribution to save/unsave
+     * @param isSave       True if you want to save the contribution, false if you want to unsave
+     *                     (remove it from your saved list)
      * @return An Observable for the result of the save request, true if successful, false otherwise
      */
-    public Observable<Boolean> saveLink(final PublicContribution link, final boolean isSave) {
-        return mRedditAccount.saveLink(link, isSave);
+    public Observable<Boolean> saveContribution(final PublicContribution contribution,
+            final boolean isSave) {
+        return mRedditAccount.saveContribution(contribution, isSave);
     }
 
     /**
@@ -89,8 +90,8 @@ public class RedditData {
      *                      vote
      * @return An Observable for the result of the vote request, true if successful, false otherwise
      */
-    public Observable<Boolean> voteLink(final PublicContribution contribution,
+    public Observable<Boolean> voteContribution(final PublicContribution contribution,
             final VoteDirection voteDirection) {
-        return mRedditAccount.voteLink(contribution, voteDirection);
+        return mRedditAccount.voteContribution(contribution, voteDirection);
     }
 }

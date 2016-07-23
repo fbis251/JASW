@@ -26,21 +26,28 @@ public class RedditAccount {
         mAccountManager = new AccountManager(mRedditClient);
     }
 
-    public Observable<Boolean> saveLink(final PublicContribution link, final boolean isSave) {
-        Timber.v("saveLink() called with: " + "link = [" + link + "], isSave = [" + isSave + "]");
-        SaveRequest saveRequest = new SaveRequest(link, isSave);
+    public Observable<Boolean> saveContribution(final PublicContribution contribution,
+            final boolean isSave) {
+        Timber.v("saveContribution() called with: "
+                + "contribution = ["
+                + contribution
+                + "], isSave = ["
+                + isSave
+                + "]");
+        SaveRequest saveRequest = new SaveRequest(contribution, isSave);
         Saving saving = new Saving(mAccountManager);
         return saving.save(saveRequest);
     }
 
-    public Observable<Boolean> voteLink(PublicContribution link, VoteDirection voteDirection) {
-        Timber.v("voteLink() called with: "
-                + "link = ["
-                + link
+    public Observable<Boolean> voteContribution(PublicContribution contribution,
+            VoteDirection voteDirection) {
+        Timber.v("voteContribution() called with: "
+                + "contribution = ["
+                + contribution
                 + "], voteDirection = ["
                 + voteDirection
                 + "]");
-        VoteRequest voteRequest = new VoteRequest(link, voteDirection);
+        VoteRequest voteRequest = new VoteRequest(contribution, voteDirection);
         Voting voting = new Voting(mAccountManager);
         return voting.vote(voteRequest);
     }
