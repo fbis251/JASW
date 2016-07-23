@@ -12,16 +12,24 @@ public class AuthRequest {
     private String mAuthenticationJson;
     private long   mExpirationTime;
 
-    public AuthRequest(String refreshToken,
-                       String redditClientId,
-                       String redditRedirectUrl,
-                       String authenticationJson,
-                       long expirationTime) {
+    public AuthRequest(String refreshToken, String redditClientId, String redditRedirectUrl,
+            String authenticationJson, long expirationTime) {
         mRefreshToken = refreshToken;
         mRedditClientId = redditClientId;
         mRedditRedirectUrl = redditRedirectUrl;
         mAuthenticationJson = authenticationJson;
         mExpirationTime = expirationTime;
+    }
+
+    @Override
+    public String toString() {
+        return "AuthRequest{" +
+                "mRefreshToken='" + mRefreshToken + '\'' +
+                ", mRedditClientId='" + mRedditClientId + '\'' +
+                ", mRedditRedirectUrl='" + mRedditRedirectUrl + '\'' +
+                ", mAuthenticationJson='" + mAuthenticationJson + '\'' +
+                ", mExpirationTime=" + mExpirationTime +
+                '}';
     }
 
     public String getAuthenticationJson() {

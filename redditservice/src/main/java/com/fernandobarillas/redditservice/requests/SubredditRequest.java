@@ -1,8 +1,5 @@
 package com.fernandobarillas.redditservice.requests;
 
-import com.fernandobarillas.redditservice.callbacks.RedditLinksCallback;
-import com.fernandobarillas.redditservice.links.validators.LinkValidator;
-
 import net.dean.jraw.paginators.Sorting;
 import net.dean.jraw.paginators.TimePeriod;
 
@@ -12,19 +9,15 @@ import net.dean.jraw.paginators.TimePeriod;
  * has been instantiated. Created by fb on 12/14/15.
  */
 public class SubredditRequest {
-    private final String              mSubreddit;
-    private final Sorting             mSorting;
-    private final TimePeriod          mTimePeriod;
-    private final int                 mLinkLimit;
-    private final LinkValidator       mLinkValidator;
-    private       RedditLinksCallback mRedditLinksCallback;
+    private final String     mSubreddit;
+    private final Sorting    mSorting;
+    private final TimePeriod mTimePeriod;
+    private final int        mLinkLimit;
 
     private SubredditRequest(Builder builder) {
         mSubreddit = builder.subreddit;
         mSorting = builder.mSorting;
         mLinkLimit = builder.mLinkLimit;
-        mLinkValidator = builder.mLinkValidator;
-        mRedditLinksCallback = builder.mRedditLinksCallback;
 
         // Certain Sorting types don't support TimePeriods in the reddit API
         if (mSorting == Sorting.CONTROVERSIAL || mSorting == Sorting.TOP) {
@@ -34,20 +27,18 @@ public class SubredditRequest {
         }
     }
 
+    @Override
+    public String toString() {
+        return "SubredditRequest{" +
+                "mSubreddit='" + mSubreddit + '\'' +
+                ", mSorting=" + mSorting +
+                ", mTimePeriod=" + mTimePeriod +
+                ", mLinkLimit=" + mLinkLimit +
+                '}';
+    }
+
     public int getLinkLimit() {
         return mLinkLimit;
-    }
-
-    public LinkValidator getLinkValidator() {
-        return mLinkValidator;
-    }
-
-    public RedditLinksCallback getRedditLinksCallback() {
-        return mRedditLinksCallback;
-    }
-
-    public void setRedditLinksCallback(RedditLinksCallback linksCallback) {
-        mRedditLinksCallback = linksCallback;
     }
 
     public Sorting getSorting() {
@@ -67,11 +58,9 @@ public class SubredditRequest {
         private final String subreddit;
 
         // Optional parameters, using default values
-        private Sorting             mSorting             = Sorting.HOT;
-        private TimePeriod          mTimePeriod          = TimePeriod.DAY;
-        private int                 mLinkLimit           = 100;
-        private LinkValidator       mLinkValidator       = null;
-        private RedditLinksCallback mRedditLinksCallback = null;
+        private Sorting    mSorting    = Sorting.HOT;
+        private TimePeriod mTimePeriod = TimePeriod.DAY;
+        private int        mLinkLimit  = 100;
 
         public Builder(String subreddit) {
             this.subreddit = subreddit;
@@ -83,16 +72,6 @@ public class SubredditRequest {
 
         public Builder setLinkLimit(int linkLimit) {
             mLinkLimit = linkLimit;
-            return this;
-        }
-
-        public Builder setLinkValidator(LinkValidator linkValidator) {
-            mLinkValidator = linkValidator;
-            return this;
-        }
-
-        public Builder setRedditLinksCallback(RedditLinksCallback redditLinksCallback) {
-            mRedditLinksCallback = redditLinksCallback;
             return this;
         }
 
