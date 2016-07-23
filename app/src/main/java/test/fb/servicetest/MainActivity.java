@@ -9,38 +9,38 @@ import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
 import com.fernandobarillas.redditservice.RedditService;
-import com.fernandobarillas.redditservice.callbacks.RedditLinksCallback;
-import com.fernandobarillas.redditservice.models.Link;
 import com.fernandobarillas.redditservice.requests.SubredditRequest;
-import com.fernandobarillas.redditservice.results.VoteResult;
-import com.orhanobut.logger.Logger;
 
 import net.dean.jraw.http.UserAgent;
-import net.dean.jraw.models.VoteDirection;
+import net.dean.jraw.models.Submission;
+import net.dean.jraw.models.Subreddit;
 import net.dean.jraw.paginators.Sorting;
+import net.dean.jraw.paginators.SubredditPaginator;
 import net.dean.jraw.paginators.TimePeriod;
 
 import java.util.Date;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import rx.Observable;
+import rx.Subscriber;
 import rx.Subscription;
 import rx.android.schedulers.AndroidSchedulers;
-import rx.functions.Action1;
 import rx.functions.Func1;
+import timber.log.Timber;
 
 public class MainActivity extends AppCompatActivity {
-    private static final String LOG_TAG         = "MainActivity";
-    private static final int    UPDATE_INTERVAL = 1; // Seconds between UI updates from RedditService
+    /** Seconds between UI updates from RedditService */
+    private static final int UPDATE_INTERVAL = 1;
 
     private RedditService        mRedditService;
     private TextView             mElapsedTimeTextView;
@@ -48,15 +48,22 @@ public class MainActivity extends AppCompatActivity {
     private FloatingActionButton mFab;
     private ServiceConnection    mRedditServiceConnection;
     private Subscription         mWaitForServiceSubscription;
+    private SubredditRequest     mSubredditRequest;
+    private SubredditPaginator   mPaginator;
+    private Set<Submission>      mSubmissionSet;
+
+    private Date mStartDate;
+    private Date mReadyDate;
 
     public MainActivity() {
-        Logger.init(LOG_TAG);
+        Timber.v("MainActivity() called");
         mRedditServiceConnection = new MainConnection();
     }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        Logger.v("onCreate() called with: " + "savedInstanceState = [" + savedInstanceState + "]");
+        Timber.v("onCreate() called with: " + "savedInstanceState = [" + savedInstanceState + "]");
+        mStartDate = new Date();
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
@@ -65,60 +72,40 @@ public class MainActivity extends AppCompatActivity {
         mFab = (FloatingActionButton) findViewById(R.id.fab);
 
         setSupportActionBar(toolbar);
-
-        mFab.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(final View view) {
-                if (mRedditService == null) return;
-                final Link link = mRedditService.getLink(mRedditService.getLinkCount() - 1);
-                if (link == null) return;
-                mRedditService.voteLink(link, VoteDirection.UPVOTE)
-                        .subscribe(new Action1<VoteResult>() {
-                            @Override
-                            public void call(VoteResult voteResult) {
-                                if (voteResult.getThrowable() != null) {
-                                    Snackbar.make(view,
-                                                  "Error when voting: " + voteResult.getThrowable()
-                                                          .getLocalizedMessage(),
-                                                  Snackbar.LENGTH_INDEFINITE)
-                                            .show();
-                                } else {
-                                    Snackbar.make(view,
-                                                  "Voted " + link.getTitle(),
-                                                  Snackbar.LENGTH_SHORT)
-                                            .show();
-                                }
-                            }
-                        });
-            }
-        });
         mGetMoreLinksButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(final View view) {
-                if (mRedditService == null) return;
-                mRedditService.getMoreLinks(handleRedditDataUpdate(mGetMoreLinksButton));
+                Timber.v("onClick() called with: " + "view = [" + view + "]");
+                if (mRedditService == null || mPaginator == null) return;
+                mRedditService.getMoreSubmissions(mPaginator).subscribe(submissionsHandler());
             }
         });
         updateElapsedTimeTextView();
+
+        mSubmissionSet = new LinkedHashSet<>();
+        mSubredditRequest = new SubredditRequest.Builder("all").setLinkLimit(100)
+                .setSorting(Sorting.TOP)
+                .setTimePeriod(TimePeriod.WEEK)
+                .build();
     }
 
     @Override
     protected void onStop() {
-        Logger.v("onStop() called");
+        Timber.v("onStop() called");
         stopService(new Intent(this, RedditService.class));
         super.onStop();
     }
 
     @Override
     protected void onPause() {
-        Logger.v("onPause() called");
+        Timber.v("onPause() called");
         unbindService(mRedditServiceConnection);
         super.onPause();
     }
 
     @Override
     protected void onResume() {
-        Logger.v("onResume() called");
+        Timber.v("onResume() called");
         super.onResume();
         PackageInfo packageInfo = null;
         try {
@@ -126,45 +113,86 @@ public class MainActivity extends AppCompatActivity {
         } catch (PackageManager.NameNotFoundException e) {
             e.printStackTrace();
         }
-        String    platform        = "Android";
-        String    appId           = getApplication().getPackageName();
-        String    version         = (packageInfo != null) ? packageInfo.versionName : "";
-        String    creatorUsername = "fbis251";
-        UserAgent appUserAgent    = UserAgent.of(platform, appId, version, creatorUsername);
+        String platform = "Android";
+        String appId = getApplication().getPackageName();
+        String version = (packageInfo != null) ? packageInfo.versionName : "";
+        String creatorUsername = "fbis251";
+        UserAgent appUserAgent = UserAgent.of(platform, appId, version, creatorUsername);
 
-        Intent redditServiceIntent = RedditService.getRedditServiceIntent(getApplicationContext(),
-                                                                          PrivateConstants.USERNAME,
-                                                                          PrivateConstants.REDDIT_CLIENT_ID,
-                                                                          PrivateConstants.REDDIT_REDIRECT_URL,
-                                                                          appUserAgent);
+        boolean userless = true; // Set to true to not do a client-only authentication
+        String username = userless ? null : PrivateConstants.USERNAME;
+
+        Intent redditServiceIntent =
+                RedditService.getRedditServiceIntent(getApplicationContext(), username,
+                        PrivateConstants.REDDIT_CLIENT_ID, PrivateConstants.REDDIT_REDIRECT_URL,
+                        appUserAgent);
         bindService(redditServiceIntent, mRedditServiceConnection, Context.BIND_AUTO_CREATE);
     }
 
-    private RedditLinksCallback handleRedditDataUpdate(final View view) {
-        Logger.v("handleRedditDataUpdate() called");
-        return new RedditLinksCallback() {
+    private void stopWaiting() {
+        Timber.v("stopWaiting() called");
+        if (mWaitForServiceSubscription != null) mWaitForServiceSubscription.unsubscribe();
+    }
+
+    private Subscriber<List<Submission>> submissionsHandler() {
+        Timber.v("submissionsHandler() called");
+        return new Subscriber<List<Submission>>() {
             @Override
-            public void linksCallback(Exception e) {
-                if (e != null) {
-                    Logger.e(e, "linksCallback()");
-                    return;
-                }
-                if (view != null) {
-                    Snackbar.make(view, "Downloaded more links", Snackbar.LENGTH_LONG)
-                            .setAction("Action", null)
-                            .show();
-                }
+            public void onCompleted() {
+                Timber.v("submissionsHandler onCompleted() called");
+                if (mSubmissionSet == null) return;
+                Timber.i("submissionsHandler onCompleted: Total submissions: [%d]",
+                        mSubmissionSet.size());
+            }
+
+            @Override
+            public void onStart() {
+                Timber.v("submissionsHandler onStart() called");
+                super.onStart();
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                Timber.e(e, "submissionsHandler onError: ");
+            }
+
+            @Override
+            public void onNext(List<Submission> submissions) {
+                Timber.i("submissionsHandler onNext: Got [%d] submissions", submissions.size());
+                if (mSubmissionSet == null) return;
+                mSubmissionSet.addAll(submissions);
             }
         };
     }
 
-    private void stopWaiting() {
-        Logger.v("stopWaiting() called");
-        if (mWaitForServiceSubscription != null) mWaitForServiceSubscription.unsubscribe();
+    private Subscriber<List<Subreddit>> subscriptionsHandler() {
+        Timber.v("subscriptionsHandler() called");
+        return new Subscriber<List<Subreddit>>() {
+            @Override
+            public void onCompleted() {
+                Timber.v("subscriptionsHandler onCompleted() called");
+            }
+
+            @Override
+            public void onStart() {
+                Timber.v("subscriptionsHandler onStart() called");
+                super.onStart();
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                Timber.e(e, "subscriptionsHandler onError: ");
+            }
+
+            @Override
+            public void onNext(List<Subreddit> subreddits) {
+                Timber.i("submissionsHandler onNext: Got [%d] subreddits", subreddits.size());
+            }
+        };
     }
 
     private void updateElapsedTimeTextView() {
-        Logger.v("updateElapsedTimeTextView() called");
+        Timber.v("updateElapsedTimeTextView() called");
         final long startTime = new Date().getTime();
         Observable.interval(UPDATE_INTERVAL, TimeUnit.SECONDS)
                 .observeOn(AndroidSchedulers.mainThread())
@@ -173,15 +201,17 @@ public class MainActivity extends AppCompatActivity {
                     public Object call(Long aLong) {
                         if (mElapsedTimeTextView == null || mRedditService == null) return null;
 
-                        boolean isReady     = mRedditService.isServiceReady();
-                        long    elapsedTime = (new Date().getTime() - startTime) / 1000;
-                        int     linkCount   = mRedditService.getLinkCount();
+                        boolean isReady = mRedditService.isServiceReady();
+                        long elapsedTime = (new Date().getTime() - startTime) / 1000;
+                        int linkCount = mSubmissionSet != null ? mSubmissionSet.size() : 0;
 
+                        String serviceStatus = (isReady) ? "Ready" : "NOT READY";
+                        Date readyDate = mReadyDate != null ? mReadyDate : new Date();
+                        double serviceWaitTime =
+                                (readyDate.getTime() - mStartDate.getTime()) / 1000.0;
                         mElapsedTimeTextView.setText(String.format(
-                                "%d second(s)\n%s\nLink Count: %d",
-                                elapsedTime,
-                                (isReady) ? "Ready" : "NOT READY",
-                                linkCount));
+                                "Running for %d second(s)\n%s\nService Wait Time: %.2fs\nLink Count: %d",
+                                elapsedTime, serviceStatus, serviceWaitTime, linkCount));
                         return null;
                     }
                 })
@@ -195,18 +225,18 @@ public class MainActivity extends AppCompatActivity {
                     public Object call(Long aLong) {
                         if (mRedditService == null) return null;
                         if (!mRedditService.isServiceReady()) {
-                            Logger.d("waitForService() Service not ready yet, waiting");
                             return null;
                         }
-                        Logger.i("waitForService() Service is ready, performing request");
-                        SubredditRequest subredditRequest = new SubredditRequest.Builder("all").setLinkLimit(
-                                100)
-                                .setSorting(Sorting.TOP)
-                                .setTimePeriod(TimePeriod.YEAR)
-                                .setLinkValidator(new TestValidator())
-                                .setRedditLinksCallback(handleRedditDataUpdate(mElapsedTimeTextView))
-                                .build();
-                        mRedditService.getNewLinks(subredditRequest);
+                        mReadyDate = new Date();
+                        long waitTime = (mReadyDate.getTime() - mStartDate.getTime()) / 1000;
+                        Timber.i("waitForService() Service is ready, waited for %d seconds",
+                                waitTime);
+
+                        mPaginator = mRedditService.getSubredditPaginator(mSubredditRequest);
+                        mRedditService.getMoreSubmissions(mPaginator)
+                                .subscribe(submissionsHandler());
+
+                        mRedditService.getSubscriptions().subscribe(subscriptionsHandler());
                         stopWaiting();
                         return null;
                     }
@@ -215,10 +245,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private class MainConnection implements ServiceConnection {
-        private static final String LOG_TAG = "ServiceConnection";
 
         public void onServiceConnected(ComponentName className, IBinder iBinder) {
-            Logger.v("onServiceConnected() called with: " + "className = [" + className + "], iBinder = [" + iBinder + "]");
+            Timber.v("onServiceConnected() called with: "
+                    + "className = ["
+                    + className
+                    + "], iBinder = ["
+                    + iBinder
+                    + "]");
             RedditService.RedditBinder redditBinder = (RedditService.RedditBinder) iBinder;
             mRedditService = redditBinder.getService();
             if (mRedditService == null) {
@@ -230,8 +264,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         public void onServiceDisconnected(ComponentName className) {
-            Log.d(LOG_TAG,
-                  "onServiceDisconnected() called with: " + "className = [" + className + "]");
+            Timber.v("onServiceDisconnected() called with: " + "className = [" + className + "]");
             mRedditService = null;
         }
     }
