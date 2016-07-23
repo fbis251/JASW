@@ -1,136 +1,96 @@
 package com.fernandobarillas.redditservice.data;
 
-import android.util.Log;
+import android.text.TextUtils;
 
-import com.fernandobarillas.redditservice.callbacks.RedditLinksCallback;
-import com.fernandobarillas.redditservice.models.Link;
 import com.fernandobarillas.redditservice.observables.UserSubscriptions;
 import com.fernandobarillas.redditservice.requests.SubredditRequest;
 
 import net.dean.jraw.RedditClient;
 import net.dean.jraw.http.LoggingMode;
 import net.dean.jraw.http.UserAgent;
+import net.dean.jraw.models.PublicContribution;
 import net.dean.jraw.models.Subreddit;
 import net.dean.jraw.models.VoteDirection;
+import net.dean.jraw.paginators.SubredditPaginator;
 
 import java.util.List;
 
 import rx.Observable;
-import rx.Subscriber;
+import timber.log.Timber;
 
 /**
  * Created by fb on 12/14/15.
  */
 public class RedditData {
-    public static final  int    DOWNLOAD_RETRIES = 3; // Download attempts before giving up
-    private static final String LOG_TAG          = "RedditData";
-    private static RedditData    sInstance;
-    public         RedditClient  mRedditClient;
-    private        RedditLinks   mRedditLinks;
-    private        RedditAccount mRedditAccount;
+    /** Download attempts before giving up */
+    public static final int DOWNLOAD_RETRIES = 1;
 
-    private UserAgent mUserAgent;
+    public RedditClient mRedditClient;
 
-    // TODO: Enable this:
-//    private HashMap<String, RedditLinks> mRedditLinksHashMap;
+    private RedditAccount mRedditAccount;
 
-    private RedditData(UserAgent userAgent) {
-        Log.d(LOG_TAG, "RedditData()");
-
-        mUserAgent = userAgent;
-
-        mRedditClient = new RedditClient(mUserAgent);
-        // TODO: Handle setting logging mode when app isn't debuggable
-//        mRedditClient.setLoggingMode(LoggingMode.ALWAYS);
+    public RedditData(UserAgent userAgent) {
+        Timber.v("RedditData() called with: " + "userAgent = [" + userAgent + "]");
+        mRedditClient = new RedditClient(userAgent);
         mRedditClient.setLoggingMode(LoggingMode.ON_FAIL);
         mRedditClient.setRetryLimit(DOWNLOAD_RETRIES);
 
-        mRedditLinks = new RedditLinks(mRedditClient);
         mRedditAccount = new RedditAccount(mRedditClient);
     }
 
-    public static RedditData getInstance(UserAgent userAgent) {
-        Log.v(LOG_TAG, "getInstance() called with: " + "userAgent = [" + userAgent + "]");
-
-        if (sInstance == null) {
-            sInstance = new RedditData(userAgent);
+    /**
+     * Instantiates a new SubredditPaginator using the current RedditClient instance
+     *
+     * @param subredditRequest The request data to use when instantiating a new paginator
+     * @return A SubredditPaginator instance using the parameters passed-in via the SubredditRequest
+     */
+    public final SubredditPaginator getSubredditPaginator(final SubredditRequest subredditRequest) {
+        SubredditPaginator paginator;
+        String subreddit = subredditRequest.getSubreddit();
+        if (TextUtils.isEmpty(subreddit)) {
+            // Load the frontpage
+            Timber.i("getSubredditPaginator:  New Frontpage Paginator");
+            paginator = new SubredditPaginator(mRedditClient);
+        } else {
+            Timber.i("getSubredditPaginator:  New /r/%s Paginator", subreddit);
+            paginator = new SubredditPaginator(mRedditClient, subreddit);
         }
 
-        return sInstance;
-    }
-
-    public static RedditData newInstance(UserAgent userAgent) {
-        Log.v(LOG_TAG, "newInstance() called with: " + "userAgent = [" + userAgent + "]");
-        sInstance = null;
-        return getInstance(userAgent);
-    }
-
-    public int getLastViewedLink() {
-        return mRedditLinks.getLastViewedLink();
-    }
-
-    public void setLastViewedLink(int lastViewedLink) {
-        mRedditLinks.setLastViewedLink(lastViewedLink);
-    }
-
-    public Link getLink(int whichLink) {
-        return mRedditLinks.getLink(whichLink);
-    }
-
-    public int getLinkCount() {
-        return mRedditLinks.getCount();
-    }
-
-    public Observable<String> getLinksObservable(final SubredditRequest subredditRequest) {
-        return Observable.create(new Observable.OnSubscribe<String>() {
-
-            @Override
-            public void call(Subscriber<? super String> subscriber) {
-                Log.v(LOG_TAG, "getLinksObservable() call() called with: " + "subscriber = [" + subscriber + "]");
-                if (subscriber.isUnsubscribed()) return;
-
-                int attempts = 0;
-                while (attempts++ < DOWNLOAD_RETRIES) {
-                    mRedditLinks.getNewLinks(subredditRequest);
-                    subscriber.onNext("Yup");
-                }
-
-                subscriber.onCompleted();
-            }
-        });
-    }
-
-    public void getMoreLinks(final RedditLinksCallback linksCallback) {
-        Log.v(LOG_TAG, "getMoreLinks()");
-        mRedditLinks.getMoreLinks(linksCallback);
-    }
-
-    public void getNewLinks(final SubredditRequest subredditRequest) {
-        Log.v(LOG_TAG, "getNewLinks() called with: " + "subredditRequest = [" + subredditRequest + "]");
-        int attempts = 0;
-        while (attempts++ < DOWNLOAD_RETRIES) {
-            mRedditLinks.getNewLinks(subredditRequest);
+        paginator.setLimit(subredditRequest.getLinkLimit());
+        paginator.setSorting(subredditRequest.getSorting());
+        if (subredditRequest.getTimePeriod() != null) {
+            paginator.setTimePeriod(subredditRequest.getTimePeriod());
         }
+
+        return paginator;
     }
 
-    public int getNsfwImageCount() {
-        return mRedditLinks.getNsfwImageCount();
-    }
-
-    public List<Link> getRedditLinksList() {
-        return mRedditLinks.getRedditLinksList();
-    }
-
-    public Observable<Subreddit> getSubscriptions() {
+    /**
+     * @return An Observable for a user's subscribed subreddits
+     */
+    public Observable<List<Subreddit>> getSubscriptions() {
         UserSubscriptions subredditsObservable = new UserSubscriptions(mRedditClient);
         return subredditsObservable.getSubscriptions();
     }
 
-    public Observable<Boolean> saveLink(final Link link, final boolean isSave) {
+    /**
+     * @param link   The contribution to save/unsave
+     * @param isSave True if you want to save the contribution, false if you want to unsave (remove
+     *               it from your saved list)
+     * @return An Observable for the result of the save request, true if successful, false otherwise
+     */
+    public Observable<Boolean> saveLink(final PublicContribution link, final boolean isSave) {
         return mRedditAccount.saveLink(link, isSave);
     }
 
-    public Observable<Boolean> voteLink(final Link link, final VoteDirection voteDirection) {
-        return mRedditAccount.voteLink(link, voteDirection);
+    /**
+     * @param contribution  The contribution to vote on
+     * @param voteDirection The vote type to cast on the contribution. Can be upvote, downvote or no
+     *                      vote
+     * @return An Observable for the result of the vote request, true if successful, false otherwise
+     */
+    public Observable<Boolean> voteLink(final PublicContribution contribution,
+            final VoteDirection voteDirection) {
+        return mRedditAccount.voteLink(contribution, voteDirection);
     }
 }
