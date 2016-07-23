@@ -1,20 +1,20 @@
 package com.fernandobarillas.redditservice.results;
 
-import com.fernandobarillas.redditservice.models.Link;
+import net.dean.jraw.models.PublicContribution;
 
 /**
  * Created by fb on 5/18/16.
  */
 public abstract class BaseAccountResult {
-    private Link      mLink;
-    private boolean   mSuccessful;
-    private Throwable mThrowable;
+    private PublicContribution mLink;
+    private boolean            mSuccessful;
+    private Throwable          mThrowable;
 
-    public BaseAccountResult(Link link) {
+    public BaseAccountResult(PublicContribution link) {
         mLink = link;
     }
 
-    public Link getLink() {
+    public PublicContribution getLink() {
         return mLink;
     }
 
