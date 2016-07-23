@@ -1,5 +1,6 @@
 package com.fernandobarillas.redditservice.preferences;
 
+import android.annotation.SuppressLint;
 import android.content.Context;
 import android.text.TextUtils;
 
@@ -17,13 +18,29 @@ public class RedditAuthPreferences extends BasePreferences {
     private static final String USERNAME_KEY            = "username";
 
     public RedditAuthPreferences(Context context, String username) {
-        // TODO: Handle null username
         String preferencesName = PREFERENCES_USERLESS;
         if (!TextUtils.isEmpty(username)) {
             preferencesName = PREFERENCES_PREFIX + username;
         }
         mSharedPreferences = context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE);
         setStringPreference(USERNAME_KEY, username);
+    }
+
+    /**
+     * Immediately commits pending operations. Useful when you need to make sure important values
+     * such as authentication data are committed right away.
+     */
+    @SuppressLint("CommitPrefEdits")
+    public void commit() {
+        mSharedPreferences.edit().commit();
+    }
+
+    /**
+     * Deletes all preferences stored for this reddit user, useful when doing a revoke/logout
+     */
+    @SuppressLint("CommitPrefEdits")
+    public void delete() {
+        mSharedPreferences.edit().clear().commit();
     }
 
     public String getAuthenticationJson() {
@@ -52,14 +69,5 @@ public class RedditAuthPreferences extends BasePreferences {
 
     public String getUsername() {
         return mSharedPreferences.getString(USERNAME_KEY, null);
-    }
-
-    /**
-     * Deletes all preferences stored for this reddit user, useful when doing a revoke/logout
-     */
-    public void delete() {
-        mSharedPreferences.edit()
-                .clear()
-                .commit();
     }
 }
