@@ -1,7 +1,6 @@
 package com.fernandobarillas.redditservice.observables;
 
 import com.fernandobarillas.redditservice.exceptions.NullAccountManagerException;
-import com.fernandobarillas.redditservice.exceptions.SameSaveStateException;
 import com.fernandobarillas.redditservice.requests.SaveRequest;
 
 import net.dean.jraw.ApiException;
@@ -39,19 +38,12 @@ public class Saving {
         });
     }
 
-    private boolean save() throws NullAccountManagerException, ApiException, SameSaveStateException {
+    private boolean save() throws NullAccountManagerException, ApiException {
         if (mAccountManager == null) {
             throw new NullAccountManagerException();
         }
 
-        boolean isSaveRequest = mSaveRequest.isSave();
-        boolean currentSaveState = mSaveRequest.getLink()
-                .isSaved();
-        if (isSaveRequest == currentSaveState) {
-            throw new SameSaveStateException();
-        }
-
-        if (isSaveRequest) {
+        if (mSaveRequest.isSave()) {
             mAccountManager.save(mSaveRequest.getLink());
         } else {
             mAccountManager.unsave(mSaveRequest.getLink());

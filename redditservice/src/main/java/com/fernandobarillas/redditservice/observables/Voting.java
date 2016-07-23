@@ -2,13 +2,14 @@ package com.fernandobarillas.redditservice.observables;
 
 import com.fernandobarillas.redditservice.exceptions.NullAccountManagerException;
 import com.fernandobarillas.redditservice.requests.VoteRequest;
-import com.orhanobut.logger.Logger;
 
 import net.dean.jraw.ApiException;
 import net.dean.jraw.managers.AccountManager;
+import net.dean.jraw.models.VoteDirection;
 
 import rx.Observable;
 import rx.Subscriber;
+import timber.log.Timber;
 
 /**
  * Created by fb on 12/15/15.
@@ -40,12 +41,25 @@ public class Voting {
     }
 
     private boolean vote() throws NullAccountManagerException, ApiException {
-        Logger.v("doInBackground() called");
+        Timber.v("doInBackground() called");
         if (mAccountManager == null) {
             throw new NullAccountManagerException();
         }
 
-        mAccountManager.vote(mVoteRequest.getLink(), mVoteRequest.getVoteDirection());
+        VoteDirection voteDirection = VoteDirection.NO_VOTE;
+        switch (mVoteRequest.getVoteDirection()) {
+            case VoteRequest.DOWNVOTE:
+                voteDirection = VoteDirection.DOWNVOTE;
+                break;
+            case VoteRequest.UPVOTE:
+                voteDirection = VoteDirection.UPVOTE;
+                break;
+            case VoteRequest.NO_VOTE:
+            default:
+                break;
+        }
+
+        mAccountManager.vote(mVoteRequest.getLink(), voteDirection);
         return true;
     }
 }
