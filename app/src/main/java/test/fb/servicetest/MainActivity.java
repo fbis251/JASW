@@ -77,7 +77,9 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(final View view) {
                 Timber.v("onClick() called with: " + "view = [" + view + "]");
                 if (mRedditService == null || mPaginator == null) return;
-                mRedditService.getMoreSubmissions(mPaginator).subscribe(submissionsHandler());
+                mRedditService.getMoreSubmissions(mPaginator)
+                        .toList()
+                        .subscribe(submissionsHandler());
             }
         });
         updateElapsedTimeTextView();
@@ -127,11 +129,6 @@ public class MainActivity extends AppCompatActivity {
                         PrivateConstants.REDDIT_CLIENT_ID, PrivateConstants.REDDIT_REDIRECT_URL,
                         appUserAgent);
         bindService(redditServiceIntent, mRedditServiceConnection, Context.BIND_AUTO_CREATE);
-    }
-
-    private void stopWaiting() {
-        Timber.v("stopWaiting() called");
-        if (mWaitForServiceSubscription != null) mWaitForServiceSubscription.unsubscribe();
     }
 
     private Subscriber<List<Submission>> submissionsHandler() {
@@ -218,30 +215,47 @@ public class MainActivity extends AppCompatActivity {
                 .subscribe();
     }
 
-    private void waitForService() {
-        mWaitForServiceSubscription = Observable.interval(UPDATE_INTERVAL, TimeUnit.SECONDS)
-                .map(new Func1<Long, Object>() {
-                    @Override
-                    public Object call(Long aLong) {
-                        if (mRedditService == null) return null;
-                        if (!mRedditService.isServiceReady()) {
-                            return null;
-                        }
-                        mReadyDate = new Date();
-                        long waitTime = (mReadyDate.getTime() - mStartDate.getTime()) / 1000;
-                        Timber.i("waitForService() Service is ready, waited for %d seconds",
-                                waitTime);
+    private void waitForServiceAuthentication() {
+        Timber.v("waitForServiceAuthentication() called");
+        if (mRedditService == null) return;
+        mRedditService.isReadyCheck().takeUntil(new Func1<Boolean, Boolean>() {
+            @Override
+            public Boolean call(Boolean isServiceReady) {
+                // Stop emitting items once the service is ready so that the subscribers'
+                // onCompleted method can handle the service being ready
+                return isServiceReady;
+            }
+        }).subscribe(new Subscriber<Boolean>() {
+            @Override
+            public void onCompleted() {
+                Timber.v("waitForServiceAuthentication onCompleted() called");
+                mReadyDate = new Date();
+                long waitTime = (mReadyDate.getTime() - mStartDate.getTime()) / 1000;
+                Timber.i("waitForService() Service is ready, waited for %d seconds", waitTime);
 
-                        mPaginator = mRedditService.getSubredditPaginator(mSubredditRequest);
-                        mRedditService.getMoreSubmissions(mPaginator)
-                                .subscribe(submissionsHandler());
+                // Download the subreddit data you requested with mSubredditRequest
+                mPaginator = mRedditService.getSubredditPaginator(mSubredditRequest);
+                mRedditService.getMoreSubmissions(mPaginator)
+                        .toList()
+                        .subscribe(submissionsHandler());
+                // Download the logged-in user's subreddit subscriptions
+                mRedditService.getSubscriptions().subscribe(subscriptionsHandler());
+            }
 
-                        mRedditService.getSubscriptions().subscribe(subscriptionsHandler());
-                        stopWaiting();
-                        return null;
-                    }
-                })
-                .subscribe();
+            @Override
+            public void onError(Throwable e) {
+                Timber.e(e,
+                        "waitForServiceAuthentication onError() called with: " + "e = [" + e + "]");
+            }
+
+            @Override
+            public void onNext(Boolean isServiceAuthenticated) {
+                Timber.v("waitForServiceAuthentication onNext() called with: "
+                        + "isServiceAuthenticated = ["
+                        + isServiceAuthenticated
+                        + "]");
+            }
+        });
     }
 
     private class MainConnection implements ServiceConnection {
@@ -260,7 +274,8 @@ public class MainActivity extends AppCompatActivity {
                 // TODO: Handle service unavailable, perform retries
             }
 
-            waitForService();
+            // Now you can begin waiting for the service to authenticate with the reddit API
+            waitForServiceAuthentication();
         }
 
         public void onServiceDisconnected(ComponentName className) {
