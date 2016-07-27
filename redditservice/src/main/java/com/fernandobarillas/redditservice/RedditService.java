@@ -138,13 +138,23 @@ public class RedditService extends Service {
      * @return An Observable that returns the List of Submissions gotten from the reddit API
      * @throws ServiceNotReadyException When the service isn't ready to make requests yet
      */
-    public Observable<List<Submission>> getMoreSubmissions(final SubredditPaginator paginator)
+    public Observable<Submission> getMoreSubmissions(final SubredditPaginator paginator)
             throws ServiceNotReadyException {
         Timber.v("getMoreSubmissions() called with: " + "paginator = [" + paginator + "]");
         validateService();
-        return SubredditPagination.getMoreSubmissions(paginator)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread());
+        return SubredditPagination.getMoreSubmissions(paginator).doOnSubscribe(new Action0() {
+            @Override
+            public void call() {
+                Timber.e("getMoreSubmissions onSubscribe()");
+                authenticate();
+            }
+        }).concatMap(new Func1<List<Submission>, Observable<? extends Submission>>() {
+            @Override
+            public Observable<? extends Submission> call(List<Submission> submissions) {
+                // Map the List of Submissions instead a stream of Submission Objects
+                return Observable.from(submissions);
+            }
+        }).subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread());
     }
 
     /**
