@@ -32,6 +32,7 @@ import net.dean.jraw.paginators.SubredditPaginator;
 
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import rx.Observable;
 import rx.Subscriber;
@@ -187,6 +188,22 @@ public class RedditService extends Service {
         return mRedditData.getSubscriptions()
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread());
+    }
+
+    /**
+     * Checks once per second whether the service is ready, authenticated and able to start making
+     * requests
+     *
+     * @return An Observable that emits a value every second. True if the service is ready to make
+     * requests, false if not ready yet
+     */
+    public Observable<Boolean> isReadyCheck() {
+        return Observable.interval(250, TimeUnit.MILLISECONDS).map(new Func1<Long, Boolean>() {
+            @Override
+            public Boolean call(Long aLong) {
+                return mIsServiceReady;
+            }
+        }).subscribeOn(Schedulers.newThread()).observeOn(AndroidSchedulers.mainThread());
     }
 
     /**
