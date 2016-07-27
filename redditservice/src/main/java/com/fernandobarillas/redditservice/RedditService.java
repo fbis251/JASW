@@ -234,31 +234,19 @@ public class RedditService extends Service {
         validateService();
         if (mRedditData == null) throw new ServiceNotReadyException();
         final SaveResult saveResult = new SaveResult(contribution);
-        return mRedditData.saveContribution(contribution, isSave)
-                .subscribeOn(Schedulers.io())
-                .doOnSubscribe(new Action0() {
-                    @Override
-                    public void call() {
-                        Timber.e("saveContribution onSubscribe()");
-                        authenticate();
-                    }
-                })
-                .map(new Func1<Boolean, SaveResult>() {
-                    @Override
-                    public SaveResult call(Boolean aBoolean) {
-                        saveResult.setSuccessful(true);
-                        return saveResult;
-                    }
-                })
-                .onErrorReturn(new Func1<Throwable, SaveResult>() {
-                    @Override
-                    public SaveResult call(Throwable throwable) {
-                        saveResult.setSuccessful(false);
-                        saveResult.setThrowable(throwable);
-                        return saveResult;
-                    }
-                })
-                .observeOn(AndroidSchedulers.mainThread());
+        return mRedditData.saveContribution(contribution, isSave).doOnSubscribe(new Action0() {
+            @Override
+            public void call() {
+                Timber.e("saveContribution onSubscribe()");
+                authenticate();
+            }
+        }).map(new Func1<Boolean, SaveResult>() {
+            @Override
+            public SaveResult call(Boolean aBoolean) {
+                saveResult.setSuccessful(true);
+                return saveResult;
+            }
+        }).subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread());
     }
 
     /**
@@ -294,11 +282,10 @@ public class RedditService extends Service {
         }
 
         return mRedditData.voteContribution(contribution, voteDirection)
-                .subscribeOn(Schedulers.io())
                 .doOnSubscribe(new Action0() {
                     @Override
                     public void call() {
-                        Timber.e("saveContribution onSubscribe()");
+                        Timber.e("voteContribution onSubscribe()");
                         authenticate();
                     }
                 })
@@ -309,14 +296,7 @@ public class RedditService extends Service {
                         return voteResult;
                     }
                 })
-                .onErrorReturn(new Func1<Throwable, VoteResult>() {
-                    @Override
-                    public VoteResult call(Throwable throwable) {
-                        voteResult.setSuccessful(false);
-                        voteResult.setThrowable(throwable);
-                        return voteResult;
-                    }
-                })
+                .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread());
     }
 
