@@ -57,11 +57,13 @@ public class Authentication {
             @Override
             public void call(Subscriber<? super AuthResult> subscriber) {
                 try {
-                    subscriber.onNext(performAuthentication());
+                    if (!subscriber.isUnsubscribed()) {
+                        subscriber.onNext(performAuthentication());
+                    }
                 } catch (Exception e) {
-                    subscriber.onError(e);
+                    if (!subscriber.isUnsubscribed()) subscriber.onError(e);
                 }
-                subscriber.onCompleted();
+                if (!subscriber.isUnsubscribed()) subscriber.onCompleted();
             }
         });
     }
@@ -83,7 +85,7 @@ public class Authentication {
         Timber.v("performAuthentication() called");
         String refreshToken = mAuthRequest.getRefreshToken();
         String redditClientId = mAuthRequest.getRedditClientId();
-        String redditRedirectUrl = mAuthRequest.getRedditRedirectUrl();
+        String redditRedirectUri = mAuthRequest.getRedditRedirectUri();
         String authenticationJson = mAuthRequest.getAuthenticationJson();
         long expirationTime = mAuthRequest.getExpirationTime();
         OAuthHelper oAuthHelper = mRedditClient.getOAuthHelper();
@@ -94,7 +96,7 @@ public class Authentication {
         if (!TextUtils.isEmpty(refreshToken)) {
             // A user refresh token is stored
             Timber.i("performAuthentication: Using refresh token to authenticate");
-            credentials = Credentials.installedApp(redditClientId, redditRedirectUrl);
+            credentials = Credentials.installedApp(redditClientId, redditRedirectUri);
             oAuthHelper.setRefreshToken(refreshToken);
             if (!isExpired && !TextUtils.isEmpty(authenticationJson)) {
                 Timber.d("performAuthentication: Using cached authentication data");
