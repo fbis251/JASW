@@ -3,21 +3,27 @@ package com.fernandobarillas.redditservice;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.os.Binder;
 import android.os.IBinder;
-import android.support.annotation.Nullable;
+import android.support.annotation.NonNull;
 import android.text.TextUtils;
 
 import com.fernandobarillas.redditservice.data.RedditData;
 import com.fernandobarillas.redditservice.exceptions.ServiceNotReadyException;
 import com.fernandobarillas.redditservice.observables.Authentication;
+import com.fernandobarillas.redditservice.observables.DomainPagination;
+import com.fernandobarillas.redditservice.observables.OauthLogin;
 import com.fernandobarillas.redditservice.observables.SubredditPagination;
 import com.fernandobarillas.redditservice.preferences.RedditAuthPreferences;
 import com.fernandobarillas.redditservice.preferences.ServicePreferences;
 import com.fernandobarillas.redditservice.requests.AuthRequest;
+import com.fernandobarillas.redditservice.requests.OauthLoginRequest;
+import com.fernandobarillas.redditservice.requests.StartServiceRequest;
 import com.fernandobarillas.redditservice.requests.SubredditRequest;
 import com.fernandobarillas.redditservice.requests.VoteRequest;
 import com.fernandobarillas.redditservice.results.AuthResult;
+import com.fernandobarillas.redditservice.results.OauthLoginResult;
 import com.fernandobarillas.redditservice.results.SaveResult;
 import com.fernandobarillas.redditservice.results.VoteResult;
 
@@ -28,12 +34,15 @@ import net.dean.jraw.models.PublicContribution;
 import net.dean.jraw.models.Submission;
 import net.dean.jraw.models.Subreddit;
 import net.dean.jraw.models.VoteDirection;
+import net.dean.jraw.paginators.DomainPaginator;
+import net.dean.jraw.paginators.Paginator;
 import net.dean.jraw.paginators.SubredditPaginator;
 
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import okhttp3.OkHttpClient;
 import rx.Observable;
 import rx.Subscriber;
 import rx.android.schedulers.AndroidSchedulers;
@@ -46,34 +55,40 @@ import timber.log.Timber;
  * The main class a client should interact with when making any kind of request to the reddit API.
  * This class can be bound to by several Activities which essentially makes it a Singleton. The
  * advantage of this is that once the Service is initialized it keeps its own client and data
- * instances instantiated which makes each activity that connects only have to deal with the
- * Observables that are returned when making any kind of request. Make sure when binding to this
- * Service to send the correct EXTRAS. You can use the {@link #getRedditServiceIntent(Context,
- * String, String, String, UserAgent) getRedditServiceIntent} method to build a proper Intent
+ * instances instantiated which makes each Activity that binds only have to deal with the
+ * Observables that are returned when making any kind of request. Make sure that after binding to
+ * this class, you call {@link #startService(StartServiceRequest)} before making any requests so
+ * that the Service can be prepared to make requests. You can then call {@link #isReadyCheck()} to
+ * wait for the Service to authenticate and be notified when it is ready to start taking requests.
+ * If you would like to use a custom OkHttpClient instance for all reddit API requests, you can set
+ * one using {@link #setOkHttpClient(OkHttpClient)} BEFORE your call to {@link
+ * #startService(StartServiceRequest)}.
  */
 public class RedditService extends Service {
-    /** Max links to request from reddit at a time **/
-    public static final int    MAX_LINK_LIMIT  = 100;
-    /** The base URL to use when building URLs such as links to posts and direct comment links */
-    public static final String REDDIT_BASE_URL = "https://reddit.com";
-
-    private static final String USERNAME_KEY            = "username";
-    private static final String USER_AGENT_KEY          = "user_agent";
-    private static final String REDDIT_CLIENT_ID_KEY    = "reddit_client_id";
-    private static final String REDDIT_REDIRECT_URL_KEY = "reddit_redirect_url";
-
+    /**
+     * Max links to request from reddit at a time
+     **/
+    public static final  int    MAX_LINK_LIMIT  = 100;
+    /**
+     * The base URL to use when building URLs such as links to posts and direct comment links
+     */
+    public static final  String REDDIT_BASE_URL = "https://reddit.com";
     /**
      * Time to deduct from authentication token expiration time. Gives a good buffer before reddit
      * deauthenticates the client
      */
-    private static final int FIVE_MIN_MS = 300000;
+    private static final int    FIVE_MIN_MS     = 300000;
 
     private final IBinder mIBinder = new RedditBinder();
 
+    private OkHttpClient          mOkHttpClient;
     private RedditAuthPreferences mAuthPreferences;
     private ServicePreferences    mServicePreferences;
     private RedditData            mRedditData;
-    private boolean mIsServiceReady = false; // Ready to provide data
+
+    // Service lifecycle
+    private boolean mIsServiceInitialized = false; // Service provided with reddit client data
+    private boolean mIsServiceReady       = false; // Ready to provide data
 
     public RedditService() {
         Timber.v("RedditService() called");
@@ -89,7 +104,6 @@ public class RedditService extends Service {
                 + "], startId = ["
                 + startId
                 + "]");
-        initializeService(intent);
         return Service.START_NOT_STICKY;
     }
 
@@ -102,33 +116,20 @@ public class RedditService extends Service {
     @Override
     public IBinder onBind(Intent intent) {
         Timber.v("onBind() called with: " + "intent = [" + intent + "]");
-        initializeService(intent);
-
         return mIBinder;
     }
 
     /**
-     * Builds an Intent using the parameters needed when binding to the RedditService
+     * Gets an Intent to bind to the service using {@link #bindService(Intent, ServiceConnection,
+     * int)}
      *
-     * @param context      The context to use for building the Intent
-     * @param username     The reddit username to use during authentication. Can be null to start a
-     *                     user-less session (guest mode)
-     * @param clientId     The installed-application client ID
-     * @param redirectUrl  The redirect URL for the application
-     * @param appUserAgent The user agent to send with all requests made to the reddit API
-     * @return An Intent using the parameters needed when binding to the {@link RedditService}
+     * @param context The context to use, normally you want this to be either your Application or
+     *                your Activity context depending on how you handle your lifecycle
+     * @return An Intent used to bind to the service
      */
-    public static Intent getRedditServiceIntent(Context context, @Nullable String username,
-            String clientId, String redirectUrl, UserAgent appUserAgent) {
+    public static Intent getRedditServiceIntent(Context context) {
         Timber.v("getRedditServiceIntent()");
-
-        // Bind the reddit service to this Activity
-        Intent redditServiceIntent = new Intent(context, RedditService.class);
-        redditServiceIntent.putExtra(RedditService.USERNAME_KEY, username);
-        redditServiceIntent.putExtra(RedditService.REDDIT_CLIENT_ID_KEY, clientId);
-        redditServiceIntent.putExtra(RedditService.REDDIT_REDIRECT_URL_KEY, redirectUrl);
-        redditServiceIntent.putExtra(RedditService.USER_AGENT_KEY, appUserAgent.toString());
-        return redditServiceIntent;
+        return new Intent(context, RedditService.class);
     }
 
     /**
@@ -138,14 +139,40 @@ public class RedditService extends Service {
      * @return An Observable that returns the List of Submissions gotten from the reddit API
      * @throws ServiceNotReadyException When the service isn't ready to make requests yet
      */
-    public Observable<Submission> getMoreSubmissions(final SubredditPaginator paginator)
+    public Observable<Submission> getMoreSubmissions(final Paginator<Submission> paginator)
             throws ServiceNotReadyException {
         Timber.v("getMoreSubmissions() called with: " + "paginator = [" + paginator + "]");
         validateService();
         return SubredditPagination.getMoreSubmissions(paginator).doOnSubscribe(new Action0() {
             @Override
             public void call() {
-                Timber.e("getMoreSubmissions onSubscribe()");
+                Timber.v("getMoreSubmissions onSubscribe()");
+                authenticate();
+            }
+        }).concatMap(new Func1<List<Submission>, Observable<? extends Submission>>() {
+            @Override
+            public Observable<? extends Submission> call(List<Submission> submissions) {
+                // Map the List of Submissions instead a stream of Submission Objects
+                return Observable.from(submissions);
+            }
+        }).subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread());
+    }
+
+    /**
+     * Performs an API request to get more submissions from a paginator
+     *
+     * @param paginator The paginator to use when making the request
+     * @return An Observable that returns the List of Submissions gotten from the reddit API
+     * @throws ServiceNotReadyException When the service isn't ready to make requests yet
+     */
+    public Observable<Submission> getMoreSubmissions(final DomainPaginator paginator)
+            throws ServiceNotReadyException {
+        Timber.v("getMoreSubmissions() called with: " + "paginator = [" + paginator + "]");
+        validateService();
+        return DomainPagination.getMoreSubmissions(paginator).doOnSubscribe(new Action0() {
+            @Override
+            public void call() {
+                Timber.v("getMoreSubmissions onSubscribe()");
                 authenticate();
             }
         }).concatMap(new Func1<List<Submission>, Observable<? extends Submission>>() {
@@ -217,12 +244,32 @@ public class RedditService extends Service {
     }
 
     /**
-     * Checks whether the service is ready, authenticated and able to start making requests
+     * Checks whether the {@link RedditService} instance has been provided with the data needed to
+     * authenticate with the reddit API.
      *
-     * @return True if the service is ready to make requests, false if not ready yet
+     * @return True if the data to authenticate has been provided. False if no data has been
+     * provided yet
+     */
+    public boolean isServiceInitialized() {
+        return mIsServiceInitialized;
+    }
+
+    /**
+     * Checks whether the service is authenticated and able to start making requests
+     *
+     * @return True if the service is authenticated and waiting to make requests, false if it is not
+     * ready yet
      */
     public boolean isServiceReady() {
         return mIsServiceReady;
+    }
+
+    public Observable<OauthLoginResult> performLogin(final OauthLoginRequest loginRequest) {
+        Timber.v("performLogin() called with: " + "loginRequest = [" + loginRequest + "]");
+        OauthLogin oauthLogin = new OauthLogin(getRedditClient());
+        return oauthLogin.performLogin(loginRequest)
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread());
     }
 
     /**
@@ -257,6 +304,62 @@ public class RedditService extends Service {
                 return saveResult;
             }
         }).subscribeOn(Schedulers.io()).observeOn(AndroidSchedulers.mainThread());
+    }
+
+    /**
+     * Sets the OkHttpClient instance to use with all reddit API requests
+     *
+     * @param okHttpClient The client to use for all requests. A custom client is useful if you want
+     *                     to use things such as a proxy or caching for all requests
+     */
+    public void setOkHttpClient(final OkHttpClient okHttpClient) {
+        mOkHttpClient = okHttpClient;
+    }
+
+    /**
+     * Starts the service, starting the authentication to the reddit API. This is the first method
+     * you want to call after getting an instance of {@link RedditService} available. The only time
+     * you may want to call this method second is if you want to set a custom OkHttpClient instance
+     * for the service to use with its requests via {@link #setOkHttpClient(OkHttpClient)}
+     *
+     * @param startRequest The request containing all the data needed to authenticate with the
+     *                     reddit API
+     */
+    public void startService(@NonNull StartServiceRequest startRequest) {
+        Timber.v("startService() called with: " + "startRequest = [" + startRequest + "]");
+        Context serviceContext = this;
+
+        String username = startRequest.getUsername();
+        UserAgent userAgent = startRequest.getAppUserAgent();
+        String redditClientId = startRequest.getClientId();
+        String redditRedirectUrl = startRequest.getRedirectUri();
+
+        if (redditClientId == null || redditRedirectUrl == null) {
+            // TODO: Handle null parameters, throw exception
+            return;
+        }
+
+        mAuthPreferences = new RedditAuthPreferences(serviceContext, username);
+        Timber.i("initializeService: Loaded preferences for user [%s]",
+                mAuthPreferences.getUsername());
+        mServicePreferences = new ServicePreferences(serviceContext);
+
+        mServicePreferences.setRedditClientId(redditClientId);
+        mServicePreferences.setRedditRedirectUri(redditRedirectUrl);
+
+        mRedditData = new RedditData(userAgent, mOkHttpClient);
+
+        if (!mRedditData.mRedditClient.isAuthenticated()) {
+            Authentication authentication = new Authentication(mRedditData.mRedditClient);
+            AuthRequest authRequest = getNewAuthRequest();
+            Timber.d("initializeService: authRequest [%s]", authRequest);
+            authentication.asyncAuthenticate(authRequest)
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(authResultSubscriber());
+        }
+
+        mIsServiceInitialized = true;
     }
 
     /**
@@ -391,44 +494,6 @@ public class RedditService extends Service {
                     new Date(mAuthPreferences.getExpirationTime()));
         }
         mIsServiceReady = true;
-    }
-
-    private void initializeService(Intent intent) {
-        Timber.v("initializeService() called with: " + "intent = [" + intent + "]");
-
-        Context serviceContext = this;
-
-        String username = intent.getExtras().getString(USERNAME_KEY, null);
-        String userAgentString =
-                intent.getExtras().getString(USER_AGENT_KEY, Constants.DEFAULT_USER_AGENT);
-        String redditClientId = intent.getExtras().getString(REDDIT_CLIENT_ID_KEY, null);
-        String redditRedirectUrl = intent.getExtras().getString(REDDIT_REDIRECT_URL_KEY, null);
-
-        if (redditClientId == null || redditRedirectUrl == null) {
-            // TODO: Handle null extras
-            return;
-        }
-
-        mAuthPreferences = new RedditAuthPreferences(serviceContext, username);
-        Timber.i("initializeService: Loaded preferences for user [%s]",
-                mAuthPreferences.getUsername());
-        mServicePreferences = new ServicePreferences(serviceContext);
-
-        mServicePreferences.setUserAgentString(userAgentString);
-        mServicePreferences.setRedditClientId(redditClientId);
-        mServicePreferences.setRedditRedirectUrl(redditRedirectUrl);
-
-        mRedditData = new RedditData(UserAgent.of(mServicePreferences.getUserAgentString()));
-
-        if (!mRedditData.mRedditClient.isAuthenticated()) {
-            Authentication authentication = new Authentication(mRedditData.mRedditClient);
-            AuthRequest request = getNewAuthRequest();
-            Timber.d("initializeService: Auth request " + request);
-            authentication.asyncAuthenticate(request)
-                    .subscribeOn(Schedulers.io())
-                    .observeOn(AndroidSchedulers.mainThread())
-                    .subscribe(authResultSubscriber());
-        }
     }
 
     private void validateService() throws ServiceNotReadyException {
