@@ -1,5 +1,6 @@
 package com.fernandobarillas.redditservice.data;
 
+import android.support.annotation.Nullable;
 import android.text.TextUtils;
 
 import com.fernandobarillas.redditservice.observables.UserSubscriptions;
@@ -7,6 +8,7 @@ import com.fernandobarillas.redditservice.requests.SubredditRequest;
 
 import net.dean.jraw.RedditClient;
 import net.dean.jraw.http.LoggingMode;
+import net.dean.jraw.http.OkHttpAdapter;
 import net.dean.jraw.http.UserAgent;
 import net.dean.jraw.models.PublicContribution;
 import net.dean.jraw.models.Subreddit;
@@ -15,6 +17,8 @@ import net.dean.jraw.paginators.SubredditPaginator;
 
 import java.util.List;
 
+import okhttp3.OkHttpClient;
+import okhttp3.Protocol;
 import rx.Observable;
 import timber.log.Timber;
 
@@ -29,9 +33,16 @@ public class RedditData {
 
     private RedditAccount mRedditAccount;
 
-    public RedditData(UserAgent userAgent) {
+    public RedditData(UserAgent userAgent, @Nullable final OkHttpClient okHttpClient) {
         Timber.v("RedditData() called with: " + "userAgent = [" + userAgent + "]");
-        mRedditClient = new RedditClient(userAgent);
+
+        if (okHttpClient != null) {
+            OkHttpAdapter adapter = new OkHttpAdapter(okHttpClient, Protocol.HTTP_2);
+            mRedditClient = new RedditClient(userAgent, adapter);
+        } else {
+            mRedditClient = new RedditClient(userAgent);
+        }
+
         mRedditClient.setLoggingMode(LoggingMode.ON_FAIL);
         mRedditClient.setRetryLimit(DOWNLOAD_RETRIES);
 
