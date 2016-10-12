@@ -2,7 +2,6 @@ package com.fernandobarillas.redditservice.observables;
 
 import net.dean.jraw.models.Submission;
 import net.dean.jraw.paginators.Paginator;
-import net.dean.jraw.paginators.SubredditPaginator;
 
 import java.util.List;
 

@@ -13,8 +13,7 @@ import rx.Subscriber;
  * Created by fb on 5/18/16.
  */
 abstract class BaseSubmissionPagination {
-    static Observable<List<Submission>> getMoreSubmissions(
-            final Paginator<Submission> paginator) {
+    static Observable<List<Submission>> getMoreSubmissions(final Paginator<Submission> paginator) {
         if (paginator == null) return null;
         return Observable.create(new Observable.OnSubscribe<List<Submission>>() {
             @Override
