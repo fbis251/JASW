@@ -16,6 +16,7 @@ import android.widget.Button;
 import android.widget.TextView;
 
 import com.fernandobarillas.redditservice.RedditService;
+import com.fernandobarillas.redditservice.requests.StartServiceRequest;
 import com.fernandobarillas.redditservice.requests.SubredditRequest;
 
 import net.dean.jraw.http.UserAgent;
@@ -109,25 +110,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         Timber.v("onResume() called");
         super.onResume();
-        PackageInfo packageInfo = null;
-        try {
-            packageInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
-        } catch (PackageManager.NameNotFoundException e) {
-            e.printStackTrace();
-        }
-        String platform = "Android";
-        String appId = getApplication().getPackageName();
-        String version = (packageInfo != null) ? packageInfo.versionName : "";
-        String creatorUsername = "fbis251";
-        UserAgent appUserAgent = UserAgent.of(platform, appId, version, creatorUsername);
-
-        boolean userless = true; // Set to true to not do a client-only authentication
-        String username = userless ? null : PrivateConstants.USERNAME;
-
-        Intent redditServiceIntent =
-                RedditService.getRedditServiceIntent(getApplicationContext(), username,
-                        PrivateConstants.REDDIT_CLIENT_ID, PrivateConstants.REDDIT_REDIRECT_URL,
-                        appUserAgent);
+        Intent redditServiceIntent = RedditService.getRedditServiceIntent(this);
         bindService(redditServiceIntent, mRedditServiceConnection, Context.BIND_AUTO_CREATE);
     }
 
@@ -274,6 +257,24 @@ public class MainActivity extends AppCompatActivity {
                 // TODO: Handle service unavailable, perform retries
             }
 
+            PackageInfo packageInfo = null;
+            try {
+                packageInfo = getPackageManager().getPackageInfo(getPackageName(), 0);
+            } catch (PackageManager.NameNotFoundException e) {
+                e.printStackTrace();
+            }
+            String platform = "Android";
+            String appId = getApplication().getPackageName();
+            String version = (packageInfo != null) ? packageInfo.versionName : "";
+            String creatorUsername = "fbis251";
+            UserAgent appUserAgent = UserAgent.of(platform, appId, version, creatorUsername);
+
+            boolean userless = true; // Set to false to use username/refresh token authentication
+            String username = userless ? null : PrivateConstants.USERNAME;
+            StartServiceRequest startRequest =
+                    new StartServiceRequest(username, PrivateConstants.REDDIT_CLIENT_ID,
+                            PrivateConstants.REDDIT_REDIRECT_URL, appUserAgent);
+            mRedditService.startService(startRequest);
             // Now you can begin waiting for the service to authenticate with the reddit API
             waitForServiceAuthentication();
         }
