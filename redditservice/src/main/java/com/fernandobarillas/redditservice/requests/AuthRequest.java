@@ -8,15 +8,15 @@ public class AuthRequest {
 
     private String mRefreshToken;
     private String mRedditClientId;
-    private String mRedditRedirectUrl;
+    private String mRedditRedirectUri;
     private String mAuthenticationJson;
     private long   mExpirationTime;
 
-    public AuthRequest(String refreshToken, String redditClientId, String redditRedirectUrl,
+    public AuthRequest(String refreshToken, String redditClientId, String redditRedirectUri,
             String authenticationJson, long expirationTime) {
         mRefreshToken = refreshToken;
         mRedditClientId = redditClientId;
-        mRedditRedirectUrl = redditRedirectUrl;
+        mRedditRedirectUri = redditRedirectUri;
         mAuthenticationJson = authenticationJson;
         mExpirationTime = expirationTime;
     }
@@ -26,7 +26,7 @@ public class AuthRequest {
         return "AuthRequest{" +
                 "mRefreshToken='" + mRefreshToken + '\'' +
                 ", mRedditClientId='" + mRedditClientId + '\'' +
-                ", mRedditRedirectUrl='" + mRedditRedirectUrl + '\'' +
+                ", mRedditRedirectUri='" + mRedditRedirectUri + '\'' +
                 ", mAuthenticationJson='" + mAuthenticationJson + '\'' +
                 ", mExpirationTime=" + mExpirationTime +
                 '}';
@@ -44,8 +44,8 @@ public class AuthRequest {
         return mRedditClientId;
     }
 
-    public String getRedditRedirectUrl() {
-        return mRedditRedirectUrl;
+    public String getRedditRedirectUri() {
+        return mRedditRedirectUri;
     }
 
     public String getRefreshToken() {
