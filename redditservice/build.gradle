@@ -2,7 +2,7 @@ apply plugin: 'com.android.library'
 
 android {
     compileSdkVersion 24
-    buildToolsVersion '24.0.0'
+    buildToolsVersion '24.0.3'
 
     defaultConfig {
         minSdkVersion 15
@@ -26,13 +26,13 @@ android {
 }
 
 dependencies {
-    compile 'com.android.support:support-annotations:24.1.1'
-    compile 'com.github.thatJavaNerd:JRAW:2256e1512c'
-    compile 'io.reactivex:rxandroid:1.2.1'
-    compile 'io.reactivex:rxjava:1.1.7'
-    compile 'com.jakewharton.timber:timber:4.1.2'
+    compile 'com.android.support:support-annotations:24.2.1'
+    compile 'com.github.fbis251:JRAW:4a8f17319f'
+    compile 'com.jakewharton.timber:timber:4.3.1'
     compile 'com.squareup.okhttp3:okhttp:3.4.1'
     compile 'com.squareup.okhttp3:okhttp-urlconnection:3.4.1'
+    compile 'io.reactivex:rxandroid:1.2.1'
+    compile 'io.reactivex:rxjava:1.2.1'
 }
 
 task javadoc(type: Javadoc) {

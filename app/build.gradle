@@ -2,7 +2,7 @@ apply plugin: 'com.android.application'
 
 android {
     compileSdkVersion 24
-    buildToolsVersion '24.0.0'
+    buildToolsVersion '24.0.3'
 
     defaultConfig {
         applicationId "test.fb.redditservicetest"
@@ -40,13 +40,12 @@ repositories {
 }
 
 dependencies {
-    testCompile 'junit:junit:4.12'
-    compile 'com.android.support:appcompat-v7:24.1.1'
-    compile 'com.android.support:design:24.1.1'
-    compile 'com.github.bumptech.glide:glide:3.7.0'
-    compile 'com.github.lsjwzh.RecyclerViewPager:lib:v1.1.0'
-    compile 'io.reactivex:rxjava:1.1.7'
-    compile 'io.reactivex:rxandroid:1.2.1'
-    compile 'com.jakewharton.timber:timber:4.1.2'
     compile project(':redditservice')
+    compile 'com.android.support:appcompat-v7:24.2.1'
+    compile 'com.android.support:design:24.2.1'
+    compile 'com.github.lsjwzh.RecyclerViewPager:lib:v1.1.1'
+    compile 'com.jakewharton.timber:timber:4.3.1'
+    compile 'io.reactivex:rxandroid:1.2.1'
+    compile 'io.reactivex:rxjava:1.2.1'
+    testCompile 'junit:junit:4.12'
 }
