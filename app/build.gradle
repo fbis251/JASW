@@ -9,7 +9,7 @@ android {
         minSdkVersion 19
         targetSdkVersion 24
         versionCode 3
-        versionName "1.2 API 0.7"
+        versionName "1.2 API 0.8"
     }
     buildTypes {
         debug {
