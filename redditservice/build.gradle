@@ -27,12 +27,12 @@ android {
 
 dependencies {
     compile 'com.android.support:support-annotations:24.2.1'
-    compile 'com.github.fbis251:JRAW:4a8f17319f'
+    compile 'com.github.fbis251:JRAW:8d4c24a5d2'
     compile 'com.jakewharton.timber:timber:4.3.1'
-    compile 'com.squareup.okhttp3:okhttp:3.4.1'
-    compile 'com.squareup.okhttp3:okhttp-urlconnection:3.4.1'
+    compile 'com.squareup.okhttp3:okhttp:3.4.2'
+    compile 'com.squareup.okhttp3:okhttp-urlconnection:3.4.2'
     compile 'io.reactivex:rxandroid:1.2.1'
-    compile 'io.reactivex:rxjava:1.2.1'
+    compile 'io.reactivex:rxjava:1.2.2'
 }
 
 task javadoc(type: Javadoc) {
