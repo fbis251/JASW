@@ -24,8 +24,11 @@ public class StartServiceRequest {
      * @param redirectUri  The redirect URL for the application
      * @param appUserAgent The user agent to send with all requests made to the reddit API
      */
-    public StartServiceRequest(@Nullable String username, @NonNull String clientId,
-            @NonNull String redirectUri, @NonNull UserAgent appUserAgent) {
+    public StartServiceRequest(
+            @Nullable String username,
+            @NonNull String clientId,
+            @NonNull String redirectUri,
+            @NonNull UserAgent appUserAgent) {
         mUsername = username;
         mClientId = clientId;
         mRedirectUri = redirectUri;

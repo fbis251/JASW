@@ -26,8 +26,8 @@ public class RedditAccount {
         mAccountManager = new AccountManager(mRedditClient);
     }
 
-    public Observable<Boolean> saveContribution(final PublicContribution contribution,
-            final boolean isSave) {
+    public Observable<Boolean> saveContribution(
+            final PublicContribution contribution, final boolean isSave) {
         Timber.v("saveContribution() called with: "
                 + "contribution = ["
                 + contribution
@@ -39,8 +39,8 @@ public class RedditAccount {
         return saving.save(saveRequest);
     }
 
-    public Observable<Boolean> voteContribution(PublicContribution contribution,
-            VoteDirection voteDirection) {
+    public Observable<Boolean> voteContribution(
+            PublicContribution contribution, VoteDirection voteDirection) {
         Timber.v("voteContribution() called with: "
                 + "contribution = ["
                 + contribution

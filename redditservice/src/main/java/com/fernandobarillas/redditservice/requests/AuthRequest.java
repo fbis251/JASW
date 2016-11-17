@@ -12,8 +12,12 @@ public class AuthRequest {
     private String mAuthenticationJson;
     private long   mExpirationTime;
 
-    public AuthRequest(String refreshToken, String redditClientId, String redditRedirectUri,
-            String authenticationJson, long expirationTime) {
+    public AuthRequest(
+            String refreshToken,
+            String redditClientId,
+            String redditRedirectUri,
+            String authenticationJson,
+            long expirationTime) {
         mRefreshToken = refreshToken;
         mRedditClientId = redditClientId;
         mRedditRedirectUri = redditRedirectUri;

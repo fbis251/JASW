@@ -130,7 +130,10 @@ public class Authentication {
 
         // Make the authentication network request
         mRedditClient.authenticate(oAuthData);
-        return new AuthResult(mRedditClient.isAuthenticated(), mAuthenticationJson, mExpirationTime,
+        return new AuthResult(
+                mRedditClient.isAuthenticated(),
+                mAuthenticationJson,
+                mExpirationTime,
                 isCachedData);
     }
 }

@@ -6,8 +6,8 @@ import net.dean.jraw.http.oauth.Credentials;
  * Created by fb on 12/18/15.
  */
 public class OauthLoginRequest {
-    private Credentials  mCredentials;
-    private String       mAuthorizationUrl;
+    private Credentials mCredentials;
+    private String      mAuthorizationUrl;
 
     public OauthLoginRequest(Credentials credentials, String authorizationUrl) {
         mCredentials = credentials;

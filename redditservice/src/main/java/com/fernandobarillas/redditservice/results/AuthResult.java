@@ -9,7 +9,10 @@ public class AuthResult {
     private long    mExpirationTime;
     private boolean isCachedData;
 
-    public AuthResult(boolean isAuthenticated, String authenticationJson, long expirationTime,
+    public AuthResult(
+            boolean isAuthenticated,
+            String authenticationJson,
+            long expirationTime,
             boolean isCachedData) {
         mIsAuthenticated = isAuthenticated;
         mAuthenticationJson = authenticationJson;
