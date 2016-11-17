@@ -1,14 +1,14 @@
 apply plugin: 'com.android.library'
 
 android {
-    compileSdkVersion 24
-    buildToolsVersion '24.0.3'
+    compileSdkVersion 25
+    buildToolsVersion '25.0.0'
 
     defaultConfig {
         minSdkVersion 15
-        targetSdkVersion 24
         versionCode 7
         versionName '0.8'
+        targetSdkVersion 25
     }
     buildTypes {
         release {
@@ -26,7 +26,7 @@ android {
 }
 
 dependencies {
-    compile 'com.android.support:support-annotations:24.2.1'
+    compile 'com.android.support:support-annotations:25.0.1'
     compile 'com.github.fbis251:JRAW:8d4c24a5d2'
     compile 'com.jakewharton.timber:timber:4.3.1'
     compile 'com.squareup.okhttp3:okhttp:3.4.2'
