@@ -4,7 +4,9 @@ import android.support.annotation.Nullable;
 import android.text.TextUtils;
 
 import com.fernandobarillas.redditservice.observables.UserSubscriptions;
+import com.fernandobarillas.redditservice.paginators.UserSubmissionPaginator;
 import com.fernandobarillas.redditservice.requests.SubredditRequest;
+import com.fernandobarillas.redditservice.requests.UserSubmissionsRequest;
 
 import net.dean.jraw.RedditClient;
 import net.dean.jraw.http.LoggingMode;
@@ -38,6 +40,7 @@ public class RedditData {
 
         if (okHttpClient != null) {
             OkHttpAdapter adapter = new OkHttpAdapter(okHttpClient, Protocol.HTTP_2);
+            adapter.setRawJson(true);
             mRedditClient = new RedditClient(userAgent, adapter);
         } else {
             mRedditClient = new RedditClient(userAgent);
@@ -60,10 +63,10 @@ public class RedditData {
         String subreddit = subredditRequest.getSubreddit();
         if (TextUtils.isEmpty(subreddit)) {
             // Load the frontpage
-            Timber.i("getSubredditPaginator:  New Frontpage Paginator");
+            Timber.d("getSubredditPaginator:  New Frontpage Paginator");
             paginator = new SubredditPaginator(mRedditClient);
         } else {
-            Timber.i("getSubredditPaginator:  New /r/%s Paginator", subreddit);
+            Timber.d("getSubredditPaginator:  New /r/%s Paginator", subreddit);
             paginator = new SubredditPaginator(mRedditClient, subreddit);
         }
 
@@ -85,13 +88,36 @@ public class RedditData {
     }
 
     /**
+     * Instantiates a new UserSubmissionPaginator using the current RedditClient instance
+     *
+     * @param userRequest The request data to use when instantiating a new paginator
+     * @return A UserSubmissionPaginator instance using the parameters passed-in via the
+     * SubredditRequest
+     */
+    public final UserSubmissionPaginator getUserSubmissionsPaginator(
+            final UserSubmissionsRequest userRequest) {
+        UserSubmissionPaginator paginator;
+
+        String username = userRequest.getUsername();
+        Timber.i("getSubredditPaginator:  New /u/%s Paginator", username);
+        paginator = new UserSubmissionPaginator(mRedditClient, username);
+        paginator.setLimit(userRequest.getLinkLimit());
+        paginator.setSorting(userRequest.getSorting());
+        if (userRequest.getTimePeriod() != null) {
+            paginator.setTimePeriod(userRequest.getTimePeriod());
+        }
+
+        return paginator;
+    }
+
+    /**
      * @param contribution The contribution to save/unsave
      * @param isSave       True if you want to save the contribution, false if you want to unsave
      *                     (remove it from your saved list)
      * @return An Observable for the result of the save request, true if successful, false otherwise
      */
-    public Observable<Boolean> saveContribution(final PublicContribution contribution,
-            final boolean isSave) {
+    public Observable<Boolean> saveContribution(
+            final PublicContribution contribution, final boolean isSave) {
         return mRedditAccount.saveContribution(contribution, isSave);
     }
 
@@ -101,8 +127,8 @@ public class RedditData {
      *                      vote
      * @return An Observable for the result of the vote request, true if successful, false otherwise
      */
-    public Observable<Boolean> voteContribution(final PublicContribution contribution,
-            final VoteDirection voteDirection) {
+    public Observable<Boolean> voteContribution(
+            final PublicContribution contribution, final VoteDirection voteDirection) {
         return mRedditAccount.voteContribution(contribution, voteDirection);
     }
 }

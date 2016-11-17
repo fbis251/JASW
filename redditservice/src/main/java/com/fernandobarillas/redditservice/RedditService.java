@@ -15,12 +15,14 @@ import com.fernandobarillas.redditservice.observables.Authentication;
 import com.fernandobarillas.redditservice.observables.DomainPagination;
 import com.fernandobarillas.redditservice.observables.OauthLogin;
 import com.fernandobarillas.redditservice.observables.SubredditPagination;
+import com.fernandobarillas.redditservice.paginators.UserSubmissionPaginator;
 import com.fernandobarillas.redditservice.preferences.RedditAuthPreferences;
 import com.fernandobarillas.redditservice.preferences.ServicePreferences;
 import com.fernandobarillas.redditservice.requests.AuthRequest;
 import com.fernandobarillas.redditservice.requests.OauthLoginRequest;
 import com.fernandobarillas.redditservice.requests.StartServiceRequest;
 import com.fernandobarillas.redditservice.requests.SubredditRequest;
+import com.fernandobarillas.redditservice.requests.UserSubmissionsRequest;
 import com.fernandobarillas.redditservice.requests.VoteRequest;
 import com.fernandobarillas.redditservice.results.AuthResult;
 import com.fernandobarillas.redditservice.results.OauthLoginResult;
@@ -68,16 +70,19 @@ public class RedditService extends Service {
     /**
      * Max links to request from reddit at a time
      **/
-    public static final  int    MAX_LINK_LIMIT  = 100;
+    public static final int    MAX_LINK_LIMIT  = 100;
     /**
      * The base URL to use when building URLs such as links to posts and direct comment links
      */
-    public static final  String REDDIT_BASE_URL = "https://reddit.com";
+    public static final String REDDIT_BASE_URL = "https://reddit.com";
+
+    public static final String REDDIT_WWW_URL = "https://www.reddit.com";
+
     /**
      * Time to deduct from authentication token expiration time. Gives a good buffer before reddit
      * deauthenticates the client
      */
-    private static final int    FIVE_MIN_MS     = 300000;
+    private static final long FIVE_MINUTES_IN_MILLIS = TimeUnit.MINUTES.toMillis(5);
 
     private final IBinder mIBinder = new RedditBinder();
 
@@ -228,6 +233,24 @@ public class RedditService extends Service {
     }
 
     /**
+     * Gets a new UserSubmissionPaginator instance created using the passed-in SubredditRequest
+     *
+     * @param userRequest The request data to use when instantiating a new paginator
+     * @return A UserSubmissionPaginator instance using the parameters passed-in via the
+     * SubredditRequest
+     * @throws ServiceNotReadyException When the service isn't ready to make requests yet
+     */
+    public UserSubmissionPaginator getUserSubmissionsPaginator(final UserSubmissionsRequest userRequest)
+            throws ServiceNotReadyException {
+        Timber.v("getUserSubmissionsPaginator() called with: "
+                + "userRequest = ["
+                + userRequest
+                + "]");
+        validateService();
+        return mRedditData.getUserSubmissionsPaginator(userRequest);
+    }
+
+    /**
      * Checks once per second whether the service is ready, authenticated and able to start making
      * requests
      *
@@ -280,8 +303,9 @@ public class RedditService extends Service {
      * @return An Observable that emits the result of the save/unsave API request
      * @throws ServiceNotReadyException When the service isn't ready to make requests yet
      */
-    public Observable<SaveResult> saveContribution(final PublicContribution contribution,
-            final boolean isSave) throws ServiceNotReadyException {
+    public Observable<SaveResult> saveContribution(
+            final PublicContribution contribution, final boolean isSave)
+            throws ServiceNotReadyException {
         Timber.v("saveContribution() called with: "
                 + "contribution = ["
                 + contribution
@@ -340,7 +364,8 @@ public class RedditService extends Service {
         }
 
         mAuthPreferences = new RedditAuthPreferences(serviceContext, username);
-        Timber.i("initializeService: Loaded preferences for user [%s]",
+        Timber.i(
+                "initializeService: Loaded preferences for user [%s]",
                 mAuthPreferences.getUsername());
         mServicePreferences = new ServicePreferences(serviceContext);
 
@@ -371,8 +396,9 @@ public class RedditService extends Service {
      * @return An Observable that emits the result of the vote API request
      * @throws ServiceNotReadyException When the service isn't ready to make requests yet
      */
-    public Observable<VoteResult> voteContribution(final PublicContribution contribution,
-            @VoteRequest.VoteDirection int direction) throws ServiceNotReadyException {
+    public Observable<VoteResult> voteContribution(
+            final PublicContribution contribution, @VoteRequest.VoteDirection int direction)
+            throws ServiceNotReadyException {
         Timber.v("voteContribution() called with: "
                 + "contribution = ["
                 + contribution
@@ -458,15 +484,20 @@ public class RedditService extends Service {
         Timber.v("getNewAuthRequest() called");
         if (mAuthPreferences.getUsername() != null && mAuthPreferences.getRefreshToken() == null) {
             // TODO: Handle non-userless with no refresh token
-            Timber.e("getNewAuthRequest: No refresh token found for user [%s]",
+            Timber.e(
+                    "getNewAuthRequest: No refresh token found for user [%s]",
                     mAuthPreferences.getUsername());
             return null;
         }
-        Timber.v("getNewAuthRequest: Building new auth request for username [%s]",
+        Timber.v(
+                "getNewAuthRequest: Building new auth request for username [%s]",
                 mAuthPreferences.getUsername());
-        return new AuthRequest(mAuthPreferences.getRefreshToken(),
-                mServicePreferences.getRedditClientId(), mServicePreferences.getRedditRedirectUrl(),
-                mAuthPreferences.getAuthenticationJson(), mAuthPreferences.getExpirationTime());
+        return new AuthRequest(
+                mAuthPreferences.getRefreshToken(),
+                mServicePreferences.getRedditClientId(),
+                mServicePreferences.getRedditRedirectUrl(),
+                mAuthPreferences.getAuthenticationJson(),
+                mAuthPreferences.getExpirationTime());
     }
 
     private void handleAuthResult(AuthResult authResult) {
@@ -475,7 +506,7 @@ public class RedditService extends Service {
             Timber.v("authenticationCallback: Caching new authentication data");
             String authenticationJson = authResult.getAuthenticationJson();
             long currentTime = new Date().getTime();
-            long expirationTime = authResult.getExpirationTime() - FIVE_MIN_MS;
+            long expirationTime = authResult.getExpirationTime() - FIVE_MINUTES_IN_MILLIS;
             Timber.d("handleAuthResult: Crrnt time: [%s]", new Date(currentTime));
             Timber.d("handleAuthResult: Exprn time: [%s]", new Date(expirationTime));
             Timber.d("handleAuthResult: Auth json: [%s]", authenticationJson);
@@ -483,14 +514,17 @@ public class RedditService extends Service {
                 mAuthPreferences.setExpirationTime(expirationTime);
                 mAuthPreferences.setAuthenticationJson(authenticationJson);
                 mAuthPreferences.commit();
-                Timber.i("handleAuthResult: New auth data cached for user [%s]",
+                Timber.i(
+                        "handleAuthResult: New auth data cached for user [%s]",
                         mAuthPreferences.getUsername());
             } else {
-                Timber.i("handleAuthResult: New auth data was NOT cached for user [%s]",
+                Timber.i(
+                        "handleAuthResult: New auth data was NOT cached for user [%s]",
                         mAuthPreferences.getUsername());
             }
         } else {
-            Timber.d("handleAuthResult: Auth result already cached. Expiration: [%s]",
+            Timber.d(
+                    "handleAuthResult: Auth result already cached. Expiration: [%s]",
                     new Date(mAuthPreferences.getExpirationTime()));
         }
         mIsServiceReady = true;
