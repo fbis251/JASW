@@ -8,49 +8,33 @@ import net.dean.jraw.paginators.TimePeriod;
  * builder pattern in order to avoid Exceptions with the request being changed after the Paginator
  * has been instantiated. Created by fb on 12/14/15.
  */
-public class SubredditRequest {
-    private final String     mSubreddit;
-    private final Sorting    mSorting;
-    private final TimePeriod mTimePeriod;
-    private final int        mLinkLimit;
+public class SubredditRequest extends SubmissionRequest {
+    private final String mSubreddit;
 
     private SubredditRequest(Builder builder) {
-        mSubreddit = builder.subreddit;
-        mSorting = builder.mSorting;
-        mLinkLimit = builder.mLinkLimit;
-
         // Certain Sorting types don't support TimePeriods in the reddit API
-        if (mSorting == Sorting.CONTROVERSIAL || mSorting == Sorting.TOP) {
-            mTimePeriod = builder.mTimePeriod;
-        } else {
-            mTimePeriod = null;
-        }
+        super(
+                builder.subreddit,
+                builder.requestId,
+                builder.sorting,
+                builder.sorting == Sorting.CONTROVERSIAL || builder.sorting == Sorting.TOP
+                        ? builder.timePeriod : null,
+                builder.linkLimit);
+        mSubreddit = builder.subreddit;
     }
 
     @Override
     public String toString() {
         return "SubredditRequest{" +
                 "mSubreddit='" + mSubreddit + '\'' +
-                ", mSorting=" + mSorting +
-                ", mTimePeriod=" + mTimePeriod +
-                ", mLinkLimit=" + mLinkLimit +
+                ", sorting=" + mSorting +
+                ", timePeriod=" + mTimePeriod +
+                ", linkLimit=" + mLinkLimit +
                 '}';
-    }
-
-    public int getLinkLimit() {
-        return mLinkLimit;
-    }
-
-    public Sorting getSorting() {
-        return mSorting;
     }
 
     public String getSubreddit() {
         return mSubreddit;
-    }
-
-    public TimePeriod getTimePeriod() {
-        return mTimePeriod;
     }
 
     public static class Builder {
@@ -58,9 +42,10 @@ public class SubredditRequest {
         private final String subreddit;
 
         // Optional parameters, using default values
-        private Sorting    mSorting    = Sorting.HOT;
-        private TimePeriod mTimePeriod = TimePeriod.DAY;
-        private int        mLinkLimit  = 100;
+        private long requestId;
+        private Sorting    sorting    = Sorting.HOT;
+        private TimePeriod timePeriod = TimePeriod.DAY;
+        private int        linkLimit  = 100;
 
         public Builder(String subreddit) {
             this.subreddit = subreddit;
@@ -71,17 +56,22 @@ public class SubredditRequest {
         }
 
         public Builder setLinkLimit(int linkLimit) {
-            mLinkLimit = linkLimit;
+            this.linkLimit = linkLimit;
+            return this;
+        }
+
+        public Builder setRequestId(long requestId) {
+            this.requestId = requestId;
             return this;
         }
 
         public Builder setSorting(Sorting sorting) {
-            mSorting = sorting;
+            this.sorting = sorting;
             return this;
         }
 
         public Builder setTimePeriod(TimePeriod timePeriod) {
-            mTimePeriod = timePeriod;
+            this.timePeriod = timePeriod;
             return this;
         }
     }
