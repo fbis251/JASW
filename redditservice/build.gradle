@@ -1,8 +1,12 @@
 apply plugin: 'com.android.library'
+apply plugin: 'com.github.dcendents.android-maven'
+
+group = 'com.fernandobarillas.jasw'
+version = '0.9.1'
 
 android {
     compileSdkVersion 25
-    buildToolsVersion '25.0.0'
+    buildToolsVersion '25.0.2'
 
     defaultConfig {
         minSdkVersion 15
@@ -12,11 +16,9 @@ android {
     }
     buildTypes {
         release {
-            debuggable true
             minifyEnabled false
         }
         debug {
-            debuggable true
             minifyEnabled false
         }
     }
@@ -26,13 +28,13 @@ android {
 }
 
 dependencies {
-    compile 'com.android.support:support-annotations:25.0.1'
+    compile 'com.android.support:support-annotations:25.3.0'
     compile 'com.github.fbis251:JRAW:8d4c24a5d2'
-    compile 'com.jakewharton.timber:timber:4.3.1'
-    compile 'com.squareup.okhttp3:okhttp:3.4.2'
-    compile 'com.squareup.okhttp3:okhttp-urlconnection:3.4.2'
+    compile 'com.jakewharton.timber:timber:4.5.1'
+    compile 'com.squareup.okhttp3:okhttp:3.6.0'
+    compile 'com.squareup.okhttp3:okhttp-urlconnection:3.6.0'
     compile 'io.reactivex:rxandroid:1.2.1'
-    compile 'io.reactivex:rxjava:1.2.2'
+    compile 'io.reactivex:rxjava:1.2.9'
 }
 
 task javadoc(type: Javadoc) {
