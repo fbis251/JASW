@@ -2,6 +2,7 @@ package com.fernandobarillas.redditservice.preferences;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.text.TextUtils;
 
 import com.fernandobarillas.redditservice.requests.AuthRequest;
@@ -30,7 +31,7 @@ public class RedditAuthPreferences extends BasePreferences {
      * Immediately commits pending operations. Useful when you need to make sure important values
      * such as authentication data are committed right away.
      */
-    @SuppressLint("CommitPrefEdits")
+    @SuppressLint("ApplySharedPref")
     public void commit() {
         mSharedPreferences.edit().commit();
     }
@@ -38,36 +39,43 @@ public class RedditAuthPreferences extends BasePreferences {
     /**
      * Deletes all preferences stored for this reddit user, useful when doing a revoke/logout
      */
-    @SuppressLint("CommitPrefEdits")
+    @SuppressLint("ApplySharedPref")
     public void delete() {
-        mSharedPreferences.edit().clear().commit();
+        SharedPreferences.Editor editor = mSharedPreferences.edit();
+        editor
+                .remove(AUTHENTICATION_JSON_KEY)
+                .remove(EXPIRATION_TIME_KEY)
+                .remove(REFRESH_TOKEN_KEY)
+                .remove(USERNAME_KEY)
+                .clear()
+                .apply();
     }
 
     public String getAuthenticationJson() {
         return mSharedPreferences.getString(AUTHENTICATION_JSON_KEY, null);
     }
 
-    public void setAuthenticationJson(String authenticationJson) {
-        setStringPreference(AUTHENTICATION_JSON_KEY, authenticationJson);
-    }
-
     public long getExpirationTime() {
         return mSharedPreferences.getLong(EXPIRATION_TIME_KEY, AuthRequest.INVALID_EXPIRATION_TIME);
-    }
-
-    public void setExpirationTime(long expirationTime) {
-        setLongPreference(EXPIRATION_TIME_KEY, expirationTime);
     }
 
     public String getRefreshToken() {
         return mSharedPreferences.getString(REFRESH_TOKEN_KEY, null);
     }
 
-    public void setRefreshToken(String refreshToken) {
-        setStringPreference(REFRESH_TOKEN_KEY, refreshToken);
-    }
-
     public String getUsername() {
         return mSharedPreferences.getString(USERNAME_KEY, null);
+    }
+
+    public void setAuthenticationJson(String authenticationJson) {
+        setStringPreference(AUTHENTICATION_JSON_KEY, authenticationJson);
+    }
+
+    public void setExpirationTime(long expirationTime) {
+        setLongPreference(EXPIRATION_TIME_KEY, expirationTime);
+    }
+
+    public void setRefreshToken(String refreshToken) {
+        setStringPreference(REFRESH_TOKEN_KEY, refreshToken);
     }
 }
