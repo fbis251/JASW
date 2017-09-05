@@ -4,6 +4,7 @@ import android.text.TextUtils;
 
 import com.fernandobarillas.redditservice.requests.AuthRequest;
 import com.fernandobarillas.redditservice.results.AuthResult;
+import com.fernandobarillas.redditservice.utils.OauthUtils;
 
 import net.dean.jraw.RedditClient;
 import net.dean.jraw.http.NetworkException;
@@ -23,6 +24,7 @@ import timber.log.Timber;
  * Created by fb on 12/15/15.
  */
 public class Authentication {
+
     private AuthRequest  mAuthRequest;
     private String       mAuthenticationJson;
     private long         mExpirationTime;
@@ -105,7 +107,7 @@ public class Authentication {
             } else {
                 Timber.d("performAuthentication: Requesting new authentication data");
                 oAuthData = oAuthHelper.refreshToken(credentials);
-                mExpirationTime = oAuthData.getExpirationDate().getTime();
+                mExpirationTime = OauthUtils.getExpirationDate(oAuthData).getTime();
                 mAuthenticationJson = oAuthData.getDataNode().toString();
             }
         } else {
@@ -123,15 +125,14 @@ public class Authentication {
                 Timber.d("performAuthentication: Requesting new authentication data");
                 oAuthData = mRedditClient.getOAuthHelper().easyAuth(credentials);
             }
-            mExpirationTime = oAuthData.getExpirationDate().getTime();
+            mExpirationTime = OauthUtils.getExpirationDate(oAuthData).getTime();
             mAuthenticationJson = oAuthData.getDataNode().toString();
             Timber.d(mAuthenticationJson);
         }
 
         // Make the authentication network request
         mRedditClient.authenticate(oAuthData);
-        return new AuthResult(
-                mRedditClient.isAuthenticated(),
+        return new AuthResult(mRedditClient.isAuthenticated(),
                 mAuthenticationJson,
                 mExpirationTime,
                 isCachedData);
