@@ -1,5 +1,7 @@
 package com.fernandobarillas.redditservice.requests;
 
+import android.support.annotation.Nullable;
+
 import net.dean.jraw.paginators.Sorting;
 import net.dean.jraw.paginators.TimePeriod;
 
@@ -9,12 +11,8 @@ import net.dean.jraw.paginators.TimePeriod;
 
 public abstract class SubmissionRequest {
 
-    public static final int REQUEST_SUBREDDIT        = 0;
-    public static final int REQUEST_DOMAIN           = 1;
-    public static final int REQUEST_USER_SUBMISSIONS = 2;
-    // TODO: 10/13/16 add some common methods here
     protected final String     mRequestName;
-    protected final long       mRequestId;
+    protected final String     mAfter;
     protected final Sorting    mSorting;
     protected final TimePeriod mTimePeriod;
     protected final int        mLinkLimit;
@@ -23,8 +21,8 @@ public abstract class SubmissionRequest {
         return mLinkLimit;
     }
 
-    public long getRequestId() {
-        return mRequestId;
+    public String getAfter() {
+        return mAfter;
     }
 
     public String getRequestName() {
@@ -39,14 +37,13 @@ public abstract class SubmissionRequest {
         return mTimePeriod;
     }
 
-    protected SubmissionRequest(
-            String requestName,
-            long requestId,
+    protected SubmissionRequest(String requestName,
+            @Nullable String after,
             Sorting sorting,
             TimePeriod timePeriod,
             int linkLimit) {
         mRequestName = requestName;
-        mRequestId = requestId;
+        mAfter = after;
         mSorting = sorting;
         mTimePeriod = timePeriod;
         mLinkLimit = linkLimit;

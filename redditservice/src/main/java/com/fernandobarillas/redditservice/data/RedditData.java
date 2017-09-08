@@ -25,11 +25,12 @@ import rx.Observable;
 import timber.log.Timber;
 
 /**
- * Created by fb on 12/14/15.
+ * Class that handles providing data for and instantiating reddit {@link
+ * net.dean.jraw.paginators.Paginator}s
  */
 public class RedditData {
     /** Download attempts before giving up */
-    public static final int DOWNLOAD_RETRIES = 1;
+    private static final int DOWNLOAD_RETRIES = 2;
 
     public RedditClient mRedditClient;
 
@@ -72,9 +73,8 @@ public class RedditData {
 
         paginator.setLimit(subredditRequest.getLinkLimit());
         paginator.setSorting(subredditRequest.getSorting());
-        if (subredditRequest.getTimePeriod() != null) {
-            paginator.setTimePeriod(subredditRequest.getTimePeriod());
-        }
+        paginator.setAfter(subredditRequest.getAfter());
+        paginator.setTimePeriod(subredditRequest.getTimePeriod());
 
         return paginator;
     }
@@ -94,18 +94,15 @@ public class RedditData {
      * @return A UserSubmissionPaginator instance using the parameters passed-in via the
      * SubredditRequest
      */
-    public final UserSubmissionPaginator getUserSubmissionsPaginator(
-            final UserSubmissionsRequest userRequest) {
-        UserSubmissionPaginator paginator;
-
+    public final UserSubmissionPaginator getUserSubmissionsPaginator(final UserSubmissionsRequest userRequest) {
         String username = userRequest.getUsername();
-        Timber.i("getSubredditPaginator:  New /u/%s Paginator", username);
-        paginator = new UserSubmissionPaginator(mRedditClient, username);
+        Timber.d("getSubredditPaginator:  New /u/%s Paginator", username);
+
+        UserSubmissionPaginator paginator = new UserSubmissionPaginator(mRedditClient, username);
         paginator.setLimit(userRequest.getLinkLimit());
         paginator.setSorting(userRequest.getSorting());
-        if (userRequest.getTimePeriod() != null) {
-            paginator.setTimePeriod(userRequest.getTimePeriod());
-        }
+        paginator.setAfter(userRequest.getAfter());
+        paginator.setTimePeriod(userRequest.getTimePeriod());
 
         return paginator;
     }
@@ -116,8 +113,8 @@ public class RedditData {
      *                     (remove it from your saved list)
      * @return An Observable for the result of the save request, true if successful, false otherwise
      */
-    public Observable<Boolean> saveContribution(
-            final PublicContribution contribution, final boolean isSave) {
+    public Observable<Boolean> saveContribution(final PublicContribution contribution,
+            final boolean isSave) {
         return mRedditAccount.saveContribution(contribution, isSave);
     }
 
@@ -127,8 +124,8 @@ public class RedditData {
      *                      vote
      * @return An Observable for the result of the vote request, true if successful, false otherwise
      */
-    public Observable<Boolean> voteContribution(
-            final PublicContribution contribution, final VoteDirection voteDirection) {
+    public Observable<Boolean> voteContribution(final PublicContribution contribution,
+            final VoteDirection voteDirection) {
         return mRedditAccount.voteContribution(contribution, voteDirection);
     }
 }

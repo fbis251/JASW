@@ -13,9 +13,8 @@ public class SubredditRequest extends SubmissionRequest {
 
     private SubredditRequest(Builder builder) {
         // Certain Sorting types don't support TimePeriods in the reddit API
-        super(
-                builder.subreddit,
-                builder.requestId,
+        super(builder.subreddit,
+                builder.after,
                 builder.sorting,
                 builder.sorting == Sorting.CONTROVERSIAL || builder.sorting == Sorting.TOP
                         ? builder.timePeriod : null,
@@ -25,12 +24,20 @@ public class SubredditRequest extends SubmissionRequest {
 
     @Override
     public String toString() {
-        return "SubredditRequest{" +
-                "mSubreddit='" + mSubreddit + '\'' +
-                ", sorting=" + mSorting +
-                ", timePeriod=" + mTimePeriod +
-                ", linkLimit=" + mLinkLimit +
-                '}';
+        return "SubredditRequest{"
+                + "subreddit='"
+                + mSubreddit
+                + '\''
+                + ", after='"
+                + mAfter
+                + '\''
+                + ", mSorting="
+                + mSorting
+                + ", mTimePeriod="
+                + mTimePeriod
+                + ", mLinkLimit="
+                + mLinkLimit
+                + '}';
     }
 
     public String getSubreddit() {
@@ -42,9 +49,9 @@ public class SubredditRequest extends SubmissionRequest {
         private final String subreddit;
 
         // Optional parameters, using default values
-        private long requestId;
+        private String     after      = null;
         private Sorting    sorting    = Sorting.HOT;
-        private TimePeriod timePeriod = TimePeriod.DAY;
+        private TimePeriod timePeriod = null;
         private int        linkLimit  = 100;
 
         public Builder(String subreddit) {
@@ -55,13 +62,13 @@ public class SubredditRequest extends SubmissionRequest {
             return new SubredditRequest(this);
         }
 
-        public Builder setLinkLimit(int linkLimit) {
-            this.linkLimit = linkLimit;
+        public Builder setAfter(String after) {
+            this.after = after;
             return this;
         }
 
-        public Builder setRequestId(long requestId) {
-            this.requestId = requestId;
+        public Builder setLinkLimit(int linkLimit) {
+            this.linkLimit = linkLimit;
             return this;
         }
 
